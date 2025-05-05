@@ -1,29 +1,43 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { useFonts } from 'expo-font';
-import { Stack } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
-import 'react-native-reanimated';
+import { Stack } from "expo-router";
+import React from 'react';
+import { Button, StyleSheet, View } from 'react-native';
+import { AuthProvider, useAuth } from '../contexts/AuthContext';
+import { GroupProvider } from '../contexts/GroupContext';
 
-import { useColorScheme } from '@/hooks/useColorScheme';
-
-export default function RootLayout() {
-  const colorScheme = useColorScheme();
-  const [loaded] = useFonts({
-    SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
-  });
-
-  if (!loaded) {
-    // Async font loading only occurs in development.
-    return null;
-  }
+const LayoutInner = () => {
+  const { user, logoutUser } = useAuth();
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="+not-found" />
-      </Stack>
-      <StatusBar style="auto" />
-    </ThemeProvider>
+    <>
+      {/* Sign Out Button only if user is logged in */}
+      {user && (
+        <View style={styles.logoutContainer}>
+          <Button title="Sign Out" onPress={logoutUser} />
+        </View>
+      )}
+      <Stack />
+    </>
   );
-}
+};
+
+const Layout = () => {
+  return (
+    <AuthProvider>
+      <GroupProvider>
+        <LayoutInner />
+      </GroupProvider>
+    </AuthProvider>
+  );
+};
+
+const styles = StyleSheet.create({
+  logoutContainer: {
+    paddingTop: 40,
+    paddingHorizontal: 20,
+    alignItems: 'flex-end',
+    backgroundColor: '#fff',
+    zIndex: 100,  // make sure it's on top
+  },
+});
+
+export default Layout;
