@@ -1,0 +1,76 @@
+import React, { createContext, useState, useEffect, useContext } from 'react';
+import { auth, firestore } from '../firebaseConfig';
+import {
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signOut,
+  onAuthStateChanged
+} from 'firebase/auth';
+import { doc, setDoc } from 'firebase/firestore';
+
+export const AuthContext = createContext();
+
+export const useAuth = () => useContext(AuthContext);
+
+export const AuthProvider = ({ children }) => {
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser || null);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  const registerUser = async (email, password, name) => {
+    setError(null);
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const newUser = userCredential.user;
+
+      await setDoc(doc(firestore, 'Users', newUser.uid), {
+        name,
+        email,
+        createdAt: new Date().toISOString()
+      });
+
+      setUser(newUser);
+      return true;
+    } catch (err) {
+      setError(err.message || 'Registration failed');
+      return false;
+    }
+  };
+
+  const loginUser = async (email, password) => {
+    setError(null);
+    try {
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      setUser(userCredential.user);
+      return true;
+    } catch (err) {
+      setError(err.message || 'Login failed');
+      return false;
+    }
+  };
+
+  const logoutUser = async () => {
+    setError(null);
+    try {
+      await signOut(auth);
+      setUser(null);
+    } catch (err) {
+      setError(err.message || 'Logout failed');
+    }
+  };
+
+  return (
+    <AuthContext.Provider value={{ user, registerUser, loginUser, logoutUser, loading, error }}>
+      {children}
+    </AuthContext.Provider>
+  );
+};
