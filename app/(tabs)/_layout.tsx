@@ -1,21 +1,20 @@
 import { Stack, useRouter } from "expo-router";
-import React from 'react';
-import { Button, StyleSheet, View } from 'react-native';
-import { AuthProvider, useAuth } from '../../contexts/AuthContext';
-import { GroupProvider } from '../../contexts/GroupContext';
-
+import React from "react";
+import { Button, StyleSheet, View } from "react-native";
+import { useAuth } from "../../contexts/AuthContext";
+import { GroupProvider } from "../../contexts/GroupContext";
 
 const LayoutInner = () => {
   const router = useRouter();
   const { user, logoutUser } = useAuth();
 
-  const handleLogout = () =>{
-    logoutUser();
-    router.replace('/');
-};
+  const handleLogout = async () => {
+    await logoutUser();
+    router.replace("/");
+  };
+
   return (
     <>
-      {/* Sign Out Button only if user is logged in */}
       {user && (
         <View style={styles.logoutContainer}>
           <Button title="Sign Out" onPress={handleLogout} />
@@ -26,13 +25,11 @@ const LayoutInner = () => {
   );
 };
 
-const Layout = () => {
+const TabsLayout = () => {
   return (
-    <AuthProvider>
-      <GroupProvider>
-        <LayoutInner />
-      </GroupProvider>
-    </AuthProvider>
+    <GroupProvider>
+      <LayoutInner />
+    </GroupProvider>
   );
 };
 
@@ -40,10 +37,10 @@ const styles = StyleSheet.create({
   logoutContainer: {
     paddingTop: 40,
     paddingHorizontal: 20,
-    alignItems: 'flex-end',
-    backgroundColor: '#fff',
-    zIndex: 100,  // make sure it's on top
+    alignItems: "flex-end",
+    backgroundColor: "#fff",
+    zIndex: 100,
   },
 });
 
-export default Layout;
+export default TabsLayout;

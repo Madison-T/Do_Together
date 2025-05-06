@@ -1,20 +1,20 @@
-import { Stack, useRouter } from "expo-router";
-import React from 'react';
+import { Stack, useRouter } from 'expo-router';
+import React, { useCallback } from 'react';
 import { Button, StyleSheet, View } from 'react-native';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
 import { GroupProvider } from '../contexts/GroupContext';
 
-const LayoutInner = () => {
+const LayoutInner: React.FC = () => {
   const { user, logoutUser } = useAuth();
   const router = useRouter();
 
-  const handleLogout = () =>{
-    logoutUser();
+  const handleLogout = useCallback(async () => {
+    await logoutUser();
     router.replace('/');
-};
+  }, [logoutUser, router]);
+
   return (
     <>
-      {/* Sign Out Button only if user is logged in */}
       {user && (
         <View style={styles.logoutContainer}>
           <Button title="Sign Out" onPress={handleLogout} />
@@ -25,7 +25,7 @@ const LayoutInner = () => {
   );
 };
 
-const Layout = () => {
+const Layout: React.FC = () => {
   return (
     <AuthProvider>
       <GroupProvider>
@@ -41,7 +41,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     alignItems: 'flex-end',
     backgroundColor: '#fff',
-    zIndex: 100,  // make sure it's on top
+    zIndex: 100,
   },
 });
 
