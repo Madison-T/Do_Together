@@ -1,18 +1,24 @@
-import { Stack } from "expo-router";
+import { Stack, useRouter } from "expo-router";
 import React from 'react';
 import { Button, StyleSheet, View } from 'react-native';
 import { AuthProvider, useAuth } from '../../contexts/AuthContext';
 import { GroupProvider } from '../../contexts/GroupContext';
 
+
 const LayoutInner = () => {
+  const router = useRouter();
   const { user, logoutUser } = useAuth();
 
+  const handleLogout = () =>{
+    logoutUser();
+    router.replace('/');
+};
   return (
     <>
       {/* Sign Out Button only if user is logged in */}
       {user && (
         <View style={styles.logoutContainer}>
-          <Button title="Sign Out" onPress={logoutUser} />
+          <Button title="Sign Out" onPress={handleLogout} />
         </View>
       )}
       <Stack />

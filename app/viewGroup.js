@@ -58,7 +58,7 @@ export default function ViewGroup (){
 
     const handleShareCode = async () =>{
         try{
-            const result = await Share.share({
+            await Share.share({
                 message: `Join my group "${groupName}" in the DoTogether app. Use code: ${groupId}`,
             });
         }catch(error){
@@ -151,7 +151,27 @@ export default function ViewGroup (){
                     </View>
                 </View>
 
-                {/** Activities Section NEED TO DO*/}
+                {/** Activities Section*/}
+                <View styles={styles.section}>
+                    <View style={styles.sectionHeader}>
+                        <Text style={styles.sectionTitle}>Activities</Text>
+                        <TouchableOpacity style={styles.createActivityButton} onPress={handleCreateActivity}>
+                            <Ionicons name="add-circle-outline" size={20} color="#3f51b5" />
+                            <Text style={styles.createActivityText}>Create Activity</Text>
+                        </TouchableOpacity>
+                    </View>
+
+                    {activity.length === 0 ? (
+                        <View style={styles.emptyActivitiesContainer}>
+                            <Text style={styles.emptyActivitiesText}>No Activities yet</Text>
+                            <Text style={styles.emptyActivitiesSubtext}>Create an activity to get started</Text>
+                        </View>
+                    ):(
+                        <View style={styles.activityList}>
+                            {/**TO DO */}
+                        </View>
+                    )}
+                </View>
 
                 {/** Leave Group */}
                 {!isCreator && (
