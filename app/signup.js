@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { ActivityIndicator, Button, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
 
-const SignUp = () => {
+export default function SignUp () {
   const { registerUser, error, loading } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -75,4 +75,3 @@ const styles = StyleSheet.create({
   title: { fontSize: 24, marginBottom: 20 },
 });
 
-export default SignUp;

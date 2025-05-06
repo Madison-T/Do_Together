@@ -1,7 +1,7 @@
 import { nanoid } from 'nanoid'; // Importing shortid for generating unique IDs
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { auth } from '../firebaseConfig';
 import * as FirestoreService from '../hooks/useFirestore';
+import { useAuth } from './AuthContext';
 
 //Create the context
 export const GroupContext = createContext();
@@ -13,33 +13,27 @@ export const useGroupContext = () => useContext(GroupContext);
 export const GroupProvider = ({ children }) => {
     const [loading, setLoading] = useState(false);
     const [groups, setGroups] = useState([]);
-    const [currentUser, setCurrentUser] = useState(null);
     const [error, setError] = useState(null);
+
+    const {user : currentUser} = useAuth();
 
     //Set up the authentication state listener
     useEffect(()=>{
-        const unsubscribe = auth.onAuthStateChanged((user) =>{
-            setCurrentUser(user);
-            if(user){
-                fetchUserGroups(user.uid);
-            } else{
-                setGroups([]);
-            }
-        });
-
-        return () => unsubscribe();
-    }, []);
+       if(currentUser){
+        fetchUserGroups(currentUser.uid);
+       }else{
+        setGroups([]);
+       }
+    }, [currentUser]);
 
 
     //Fetch all the groups the user is a member of
     const fetchUserGroups = async (userId) =>{
         setLoading(true);
+        setError(null);
         try{
-            const allGroups = await FirestoreService.fetchGroups();
-            const userGroups = allGroups.filter(group =>
-                group.members && group.members.includes(userId)
-            );
-            setGroups(userGroups);
+            const userGroups = await FirestoreService.fetchUserGroups(userId);
+            setGroups(userGroups || []);
         }catch(error){
             setError("Failed to fetch groups");
             console.error("Error fetching groups", error);
@@ -59,13 +53,15 @@ export const GroupProvider = ({ children }) => {
             }
 
             const groupId = nanoid(8);
+            const joinCode = groupId;
 
             await FirestoreService.addGroup(
                 groupId,
                 groupName,
                 description,
                 [currentUser.uid], //Initial members array with only the creator
-                currentUser.uid //created by
+                currentUser.uid, //created by
+                joinCode
             );
 
             //Add the new group to the local state
@@ -76,12 +72,13 @@ export const GroupProvider = ({ children }) => {
                 members: [currentUser.uid],
                 createdBy: currentUser.uid,
                 createdAt: new Date().toISOString(),
+                joinCode: joinCode
             };
 
             setGroups([...groups, newGroup]);
             setLoading(false);
 
-            return { groupId, groupName}
+            return { groupId, groupName, joinCode}
         } catch(error){
             setError("Failed to create group");
             console.error("Error creating group:", error);
@@ -121,7 +118,7 @@ export const GroupProvider = ({ children }) => {
 
 
             //Update the local state
-            fetchUserGroups(currentUser.uid);
+            await fetchUserGroups(currentUser.uid);
 
             return {
                 success: true,

@@ -69,7 +69,7 @@ export const deleteUser = async (userId) => {
 // ===================== GROUPS =====================
 
 // Adding Group
-export const addGroup = async (groupId, name, description, members, createdBy) => {
+export const addGroup = async (groupId, name, description, members, createdBy, joinCode) => {
   try {
     await setDoc(doc(firestore, 'Groups', groupId), {
       name,
@@ -77,6 +77,8 @@ export const addGroup = async (groupId, name, description, members, createdBy) =
       members,
       createdBy,
       createdAt: new Date().toISOString(),
+      joinCode,
+      
     });
     console.log('Group added successfully');
   } catch (error) {
@@ -98,7 +100,7 @@ export const fetchGroups = async () => {
 //Fetch a specific group
 export const fetchGroupById = async (groupId) =>{
   try{
-    const groupDoc = await getDoc(doc(firestore, 'groups', groupId));
+    const groupDoc = await getDoc(doc(firestore, 'Groups', groupId));
     if(groupDoc.exists()){
       return {id: groupDoc.id, ...groupDoc.data()};
     }else{
@@ -113,7 +115,7 @@ export const fetchGroupById = async (groupId) =>{
 //Fetch groups for a specific user
 export const fetchUserGroups = async (userId) =>{
   try{
-    const snapshot = await getDocs(collection(firestore, 'groups'));
+    const snapshot = await getDocs(collection(firestore, 'Groups'));
     const groups = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()})).filter(group => group.members && group.members.includes(userId));
     return groups;
   }catch(error){
@@ -147,9 +149,9 @@ export const deleteGroup = async (groupId) => {
 //Finding a group by groupID code
 export const findGroupByCode = async(code) =>{
   try{
-    const snapshot = await getDocs(collection(firestore, 'groups'));
+    const snapshot = await getDocs(collection(firestore, 'Groups'));
     const groups = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()}));
-    const group = groups.find(g=> g.groupId === code);
+    const group = groups.find(g=> g.joinCode === code);
     return group || null;
   }catch(error){
     console.error("Error find group by code:", error);
@@ -158,7 +160,7 @@ export const findGroupByCode = async(code) =>{
 
 export const addMemberToGroup = async(groupId, userId) =>{
   try{
-    const groupDoc = await getDoc(doc(firestore, 'groups', groupId));
+    const groupDoc = await getDoc(doc(firestore, 'Groups', groupId));
     if(!groupDoc.exists()){
       throw new Error("Group not found");
     }
@@ -170,7 +172,7 @@ export const addMemberToGroup = async(groupId, userId) =>{
       return;
     }
 
-    await updateDoc(doc(firestore, 'groups', groupId), {
+    await updateDoc(doc(firestore, 'Groups', groupId), {
       members: [...members, userId],
       updatedAt: new Date().toISOString(),
     });
@@ -183,7 +185,7 @@ export const addMemberToGroup = async(groupId, userId) =>{
 
 export const removeMemberFromGroup = async(groupId, userId) =>{
   try{
-    const groupDoc = await getDoc(doc(firestore, 'groups', groupId));
+    const groupDoc = await getDoc(doc(firestore, 'Groups', groupId));
     if(!groupDoc.exists()){
       throw new Error("Group not found");
     }
@@ -196,7 +198,7 @@ export const removeMemberFromGroup = async(groupId, userId) =>{
       return;
     }
 
-    await updateDoc(doc(firestore, 'groups', groupId),{
+    await updateDoc(doc(firestore, 'Groups', groupId),{
       members: members.filter(memberId => memberId !== userId),
       updatedAt: new DataTransfer().toISOString(),
     });

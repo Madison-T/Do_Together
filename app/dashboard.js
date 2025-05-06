@@ -3,7 +3,7 @@ import React from 'react';
 import { Button, StyleSheet, Text, View } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
 
-const Dashboard = () => {
+export default function Dashboard ()  {
   const router = useRouter();
   const { logoutUser } = useAuth();
 
@@ -40,4 +40,3 @@ const styles = StyleSheet.create({
   title: { fontSize: 24, marginBottom: 20 },
 });
 
-export default Dashboard;

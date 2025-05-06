@@ -17,11 +17,17 @@ export default function GroupScreen() {
         }
 
         try{
-            const result = await createGroup(groupName, description);
-            router.push(`/viewGroup?groupId=${result.groupId}&groupName=${result.name}`);
+            const result = await createGroup(groupName.trim(), description.trim());
+            
+            if(result && result.groupId){
+                router.push(`/viewGroup?groupId=${result.groupId}&groupName=${groupName}`);
 
-            setGroupName('');
-            setDescription('');
+                setGroupName('');
+                setDescription('');
+            }else{
+                Alert.alert('Error', 'Failed to creat group. Please try again');
+            }
+            
         }catch(error){
             console.log("Error. Failed to create group", error);
         }

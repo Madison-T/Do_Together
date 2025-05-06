@@ -66,37 +66,20 @@ export default function ViewGroup (){
         }
     };
 
-    //FOR LAINA TO ADD TO
     const handleLeaveGroup = async () =>{
-        Alert.alert(
-            "Leave Group",
-            "Are you sure you want to leave this group?",
-            [
-                {
-                    text: "Cancel",
-                    style: "cancel",
-                },
-                {
-                    text: "Leave",
-                    style: "desturctive",
-                    onPress: async () => {
-                        try {
-                            const result = await leaveGroup(groupId);
+        try {
+            const result = await leaveGroup(groupId);
 
-                            if (result.success) {
-                                Alert.alert("Success", "Successfully left the group");
-                                router.replace("/dashboard");
-                            } else {
-                                Alert.alert("Error", result.message || "Failed to leave group");
-                            }
-                        } catch (error) {
-                            console.error("Error leaving group:", error);
-                            Alert.alert("Error", "Failed to leave group. Please try again.");
-                        }
-                    }
-                }
-            ]
-        );
+            if (result.success) {
+                Alert.alert("Success", "Successfully left the group");
+                router.replace("/dashboard");
+            } else {
+                Alert.alert("Error", result.message || "Failed to leave group");
+            }
+        } catch (error) {
+            console.error("Error leaving group:", error);
+            Alert.alert("Error", "Failed to leave group. Please try again.");
+        }
     };
 
     //TO DO STILL 
