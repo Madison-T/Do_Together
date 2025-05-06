@@ -8,7 +8,7 @@ import * as FirestoreService from '../hooks/useFirestore';
 
 export default function ViewGroup (){
     const { groupId, groupName} = useLocalSearchParams();
-    const { leaveGroup, loading, error} = useGroupContext();
+    const { leaveGroup } = useGroupContext();
 
     const [groupDetails, setGroupDetails] = useState(null);
     const [members, setMembers] = useState([]);
