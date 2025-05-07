@@ -1,49 +1,69 @@
-import { Stack, useRouter } from "expo-router";
-import React from 'react';
-import { Button, StyleSheet, View } from 'react-native';
-import { AuthProvider, useAuth } from '../../contexts/AuthContext';
-import { GroupProvider } from '../../contexts/GroupContext';
+// app/(tabs)/_layout.tsx
+import { Tabs, useRouter } from 'expo-router';
+import React, { useEffect } from 'react';
+import { ActivityIndicator, Button, StyleSheet, View } from 'react-native';
+import { useAuth } from '../../contexts/AuthContext';
 
-
-const LayoutInner = () => {
+export default function TabsLayout() {
+  const { user, loading, logoutUser } = useAuth();
   const router = useRouter();
-  const { user, logoutUser } = useAuth();
 
-  const handleLogout = () =>{
-    logoutUser();
-    router.replace('/');
-};
-  return (
-    <>
-      {/* Sign Out Button only if user is logged in */}
-      {user && (
-        <View style={styles.logoutContainer}>
-          <Button title="Sign Out" onPress={handleLogout} />
-        </View>
-      )}
-      <Stack />
-    </>
-  );
-};
+  // as soon as we know we're NOT authenticated, send back to '/'
+  useEffect(() => {
+    if (!loading && !user) {
+      router.replace('/');
+    }
+  }, [loading]);
 
-const Layout = () => {
+  // while Firebase is rehydrating, show a spinner
+  if (loading) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator size="large" />
+      </View>
+    );
+  }
+
+  // if still no user here, we've already routed back to '/' so bail
+  if (!user) {
+    return null;
+  }
+
+  // only authenticated users get these three tabs:
   return (
-    <AuthProvider>
-      <GroupProvider>
-        <LayoutInner />
-      </GroupProvider>
-    </AuthProvider>
+    <Tabs
+      screenOptions={{
+        headerRight: () => (
+          <Button
+            title="Log Out"
+            onPress={() => {
+              logoutUser();
+              router.replace('/');
+            }}
+          />
+        ),
+      }}
+    >
+      <Tabs.Screen
+        name="dashboard"
+        options={{ title: 'Dashboard' }}
+      />
+      <Tabs.Screen
+        name="swipe"
+        options={{ title: 'Swipe' }}
+      />
+      <Tabs.Screen
+        name="history"
+        options={{ title: 'History' }}
+      />
+    </Tabs>
   );
-};
+}
 
 const styles = StyleSheet.create({
-  logoutContainer: {
-    paddingTop: 40,
-    paddingHorizontal: 20,
-    alignItems: 'flex-end',
-    backgroundColor: '#fff',
-    zIndex: 100,  // make sure it's on top
-  },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
 });
 
-export default Layout;
+
+
+

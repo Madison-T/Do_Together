@@ -1,12 +1,13 @@
-// HistoryScreen.tsx
-
+// app/(tabs)/history/index.tsx
 import React, { useEffect, useState } from 'react';
 import { FlatList, StyleSheet, Text, View } from 'react-native';
-import { auth } from '../../../firebaseConfig';
+import { useAuth } from '../../../contexts/AuthContext';
+import { useGroupContext } from '../../../contexts/GroupContext';
 import { fetchVotes } from '../../../hooks/useFirestore';
 
+// 1) Mirror the shape that fetchVotes returns:
 type Vote = {
-  id: string;        // same as cardId
+  id: string;        // Firestore doc ID
   groupId: string;
   userId: string;
   vote: 'yes' | 'no';
@@ -14,42 +15,36 @@ type Vote = {
 };
 
 export default function HistoryScreen() {
+  const { user } = useAuth();
+  const { groupId } = useGroupContext();
   const [history, setHistory] = useState<Vote[]>([]);
-  const user = auth.currentUser;
 
   useEffect(() => {
+    if (!user || !groupId) return;
+
     (async () => {
-      if (!user) return;
-  
-      // if fetchVotes returns undefined, treat it as an empty array
-      const raw: any[] = (await fetchVotes('defaultGroup')) ?? [];
-  
-      const allVotes: Vote[] = raw.map(item => ({
-        id:        item.id,
-        groupId:   item.groupId,
-        userId:    item.userId,
-        vote:      item.vote,
-        createdAt: item.createdAt,
-      }));
-  
-      const mine = allVotes.filter(v => v.userId === user.uid);
-      setHistory(mine);
+      // 2) Grab raw array (or undefined), default to []
+      const raw = (await fetchVotes(groupId)) ?? [];
+      // 3) Quick-cast into our Vote[] type
+      const all = raw as Vote[];
+      // 4) Filter and set
+      setHistory(all.filter(v => v.userId === user.uid));
     })();
-  }, [user]);
-  
-  const renderItem = ({ item }: { item: Vote }) => (
-    <Text style={styles.item}>
-      User {item.userId} voted ‘{item.vote}’ on card {item.id}
-    </Text>
-  );
+  }, [user, groupId]);
 
   return (
     <View style={styles.container}>
       <FlatList
         data={history}
         keyExtractor={item => item.id}
-        renderItem={renderItem}
-        ListEmptyComponent={<Text style={styles.empty}>No votes yet.</Text>}
+        renderItem={({ item }) => (
+          <Text style={styles.item}>
+            You voted “{item.vote}” on card {item.id}
+          </Text>
+        )}
+        ListEmptyComponent={
+          <Text style={styles.empty}>No votes recorded yet.</Text>
+        }
         contentContainerStyle={styles.list}
       />
     </View>

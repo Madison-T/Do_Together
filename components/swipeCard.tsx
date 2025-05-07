@@ -1,26 +1,36 @@
-import { StyleSheet, Text, View } from "react-native";
+// components/SwipeCard.tsx
+import React from 'react';
+import { StyleSheet, Text, View } from 'react-native';
 
-export default function SwipeCard({ backgroundColor }: { backgroundColor: string }) {
+type Props = {
+  backgroundColor: string;
+  id?: number;          // ← add this
+};
+
+export default function SwipeCard({ backgroundColor, id }: Props) {
   return (
     <View style={[styles.card, { backgroundColor }]}>
-      <Text style={styles.text}>Swipe Me!</Text>
+      {id != null && (
+        <Text style={styles.idText}>#{id}</Text>
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-    width: 300,
-    height: 400,
-    borderRadius: 20,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "white", // you can also control background here
+    width: '100%',
+    height: '100%',
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  
-  text: {
-    color: "#fff",
-    fontSize: 24,
-    fontWeight: "bold",
+  idText: {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+    fontSize: 18,
+    color: '#fff',
+    fontWeight: 'bold',
   },
 });

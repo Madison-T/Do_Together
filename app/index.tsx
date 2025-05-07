@@ -1,7 +1,7 @@
 import { useRouter } from 'expo-router';
 import React, { useEffect } from 'react';
 import { ActivityIndicator, Button, StyleSheet, Text, View } from 'react-native';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../contexts/AuthContext';
 
 const Index = () => {
   const router = useRouter();
@@ -9,15 +9,20 @@ const Index = () => {
 
   // Redirect if user is logged in
   useEffect(() => {
-    if (!loading && user) {
-      router.replace('../dashboard');
+    // when loading finishes...
+    if (!loading) {
+      if (user) {
+        // if we’re logged in, go to the dashboard once
+        router.replace('/dashboard');
+      }
+      // if not logged in we just stay here on “Login / Sign up”
     }
-  }, [user, loading]);
+  }, [loading]);  // ← only re-run when loading changes
 
   if (loading) {
     return (
       <View style={styles.container}>
-        <ActivityIndicator size="large" color="#0000ff" />
+        <ActivityIndicator size="large" />
       </View>
     );
   }

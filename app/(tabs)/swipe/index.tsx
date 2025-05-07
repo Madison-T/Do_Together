@@ -1,5 +1,4 @@
-// SwipeScreen.tsx
-
+// app/(tabs)/swipe/index.tsx
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
@@ -13,36 +12,34 @@ import Animated, {
   withSpring,
 } from 'react-native-reanimated';
 
-import SwipeCard from '../../../components/swipeCard';
-import { auth } from '../../../firebaseConfig';
+import SwipeCard from '../../../components/swipeCard'; // ← corrected import
+import { useAuth } from '../../../contexts/AuthContext';
+import { useGroupContext } from '../../../contexts/GroupContext';
 import { addVote } from '../../../hooks/useFirestore';
 
+// ─── 50 UNIQUE HEX COLORS ─────────────────────────────────────────────────────
 const COLORS = [
-  "#FF8A80", "#EA80FC", "#8C9EFF", "#80D8FF", "#A7FFEB",
-  "#FFD180", "#FFFF8D", "#CCFF90", "#A7FFEB", "#80D8FF",
-  "#8C9EFF", "#B388FF", "#EA80FC", "#FF8A80", "#FF80AB",
-  "#FF9E80", "#FFE57F", "#D4E157", "#80CBC4", "#4DB6AC",
-  "#64B5F6", "#7986CB", "#9575CD", "#BA68C8", "#F06292",
-  "#E57373", "#FF8A65", "#FFD54F", "#DCE775", "#AED581",
-  "#4DB6AC", "#4FC3F7", "#7986CB", "#9575CD", "#BA68C8",
-  "#F06292", "#E57373", "#FF8A65", "#FFD54F", "#DCE775",
-  "#AED581", "#80CBC4", "#4FC3F7", "#7986CB", "#9575CD",
-  "#BA68C8", "#F06292", "#E57373", "#FF8A65", "#FFD54F",
+  '#FF6633', '#FFB399', '#FF33FF', '#FFFF99', '#00B3E6',
+  '#E6B333', '#3366E6', '#999966', '#99FF99', '#B34D4D',
+  '#80B300', '#809900', '#E6B3B3', '#6680B3', '#66991A',
+  '#FF99E6', '#CCFF1A', '#FF1A66', '#E6331A', '#33FFCC',
+  '#66994D', '#B366CC', '#4D8000', '#B33300', '#CC80CC',
+  '#66664D', '#991AFF', '#E666FF', '#4DB3FF', '#1AB399',
+  '#E666B3', '#33991A', '#CC9999', '#B3B31A', '#00E680',
+  '#4D8066', '#809980', '#E6FF80', '#1AFF33', '#999933',
+  '#FF3380', '#CCCC00', '#66E64D', '#4D80CC', '#9900B3',
+  '#E64D66', '#4DB380', '#FF4D4D', '#99E6E6', '#6666FF'
 ];
-
-// We tag each card with an id 1–50 so we can store it in Firestore
 type Card = { id: number; color: string };
-const initialCards: Card[] = COLORS.map((c, i) => ({ id: i + 1, color: c }));
 
 export default function SwipeScreen() {
-  const [cards, setCards] = useState<Card[]>(initialCards);
-  const router = useRouter();
+  const [cards, setCards] = useState<Card[]>(
+    () => COLORS.map((c, i) => ({ id: i + 1, color: c }))
+  );
 
-  // Animated values
+  const router = useRouter();
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
-
-  // Style binding for the top card
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [
       { translateX: translateX.value },
@@ -57,23 +54,20 @@ export default function SwipeScreen() {
     ],
   }));
 
-  // Called on swipe end (via runOnJS)
+  const { user } = useAuth();
+  const { groupId } = useGroupContext();
+
   const removeTopCard = async (direction: 'yes' | 'no') => {
-    const user = auth.currentUser;
-    if (user && cards.length) {
+    if (user && groupId && cards.length) {
       const cardId = cards[0].id.toString();
-      // Use the card's ID as the vote document ID:
-      await addVote(cardId, 'defaultGroup', user.uid, direction);
+      await addVote(cardId, groupId, user.uid, direction);
     }
-    // Remove it from local deck & reset animation
     setCards(prev => prev.slice(1));
     translateX.value = 0;
     translateY.value = 0;
-    // Go show history
     router.push('/history');
   };
 
-  // Gesture handling
   const gestureHandler = useAnimatedGestureHandler({
     onStart: (_, ctx: any) => {
       ctx.startX = translateX.value;
@@ -83,7 +77,7 @@ export default function SwipeScreen() {
       translateX.value = ctx.startX + event.translationX;
       translateY.value = ctx.startY + event.translationY;
     },
-    onEnd: (event) => {
+    onEnd: event => {
       const SWIPE_THRESHOLD = 120;
       if (Math.abs(event.translationX) > SWIPE_THRESHOLD) {
         const dir: 'yes' | 'no' = event.translationX > 0 ? 'yes' : 'no';
@@ -108,12 +102,12 @@ export default function SwipeScreen() {
                 enabled={isTop}
               >
                 <Animated.View
-                  style={[
-                    styles.cardContainer,
-                    isTop && animatedStyle,
-                  ]}
+                  style={[styles.cardContainer, isTop && animatedStyle]}
                 >
-                  <SwipeCard backgroundColor={card.color} />
+                  <SwipeCard
+                    backgroundColor={card.color}
+                    id={card.id}
+                  />
                 </Animated.View>
               </PanGestureHandler>
             );
@@ -134,3 +128,4 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 });
+
