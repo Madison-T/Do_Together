@@ -9,9 +9,6 @@ export const NotificationSystem = () => {
     notifications,
     unreadCount,
     loading,
-    permissionState,
-    requestPermission,
-    sendNotification,
     markAsRead,
     markAllAsRead,
     addLocalNotification
@@ -27,20 +24,7 @@ export const NotificationSystem = () => {
   // Send a test notification (for development purposes)
   const sendTestNotification = async () => {
     try {
-      const testNotification = {
-        id: String(Date.now()),
-        title: 'Test Notification',
-        body: 'This is a test notification from your app!',
-        read: false,
-        createdAt: new Date().toISOString(),
-        data:{
-            type:'added_to_group',
-            groupId: 'test-group-id',
-        },
-      };
-      
-      addLocalNotification(testNotification);
-      
+      await addLocalNotification();  
       
       console.log('Test notification sent:');
     } catch (error) {
@@ -49,19 +33,25 @@ export const NotificationSystem = () => {
     }
   };
 
-  // Handle permission request
-  const handleRequestPermission = async () => {
-    try {
-      const granted = await requestPermission();
-      
-      if (granted) {
-        alert('Notifications enabled successfully!');
-      } else {
-        alert('Please enable notifications in your device settings to receive updates.');
-      }
-    } catch (error) {
-      console.error('Error requesting notification permission:', error);
-      alert('Failed to enable notifications. Please check your device settings.');
+  //Format date for display
+  const formatDate = (dateString) =>{
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
+
+    if(diffMins < 1){
+      return 'Just now';
+    } else if (diffMins < 60){
+      return `${diffMins} min${diffMins !== 1 ? 's' : ''} ago`;
+    }else if(diffHours < 24){
+      return `${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`;
+    }else if(diffDays < 7){
+      return `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
+    }else{
+      return date.toLocaleDateString();
     }
   };
 
@@ -80,9 +70,7 @@ export const NotificationSystem = () => {
     >
       <Text style={styles.title}>{item.title}</Text>
       <Text>{item.body}</Text>
-      <Text style={styles.time}>
-        {new Date(item.createdAt).toLocaleTimeString()} - {new Date(item.createdAt).toLocaleDateString()}
-      </Text>
+      <Text style ={styles.time}>{formatDate(item.createdAt)}</Text>
     </TouchableOpacity>
   );
 
@@ -133,18 +121,6 @@ export const NotificationSystem = () => {
         )}
       </TouchableOpacity>
 
-      {/* Permission Prompt */}
-      {permissionState !== 'granted' && Platform.OS !== 'ios' && (
-        <View style={styles.permissionRequest}>
-          <Text style={styles.permissionText}>
-            Enable notifications to stay updated with your group activities.
-          </Text>
-          <TouchableOpacity onPress={handleRequestPermission} style={styles.permissionButton}>
-            <Text style={styles.permissionButtonText}>Enable Notifications</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-
       {/* Notification panel */}
       {showNotificationList && (
         <View style={styles.panel}>
@@ -152,7 +128,10 @@ export const NotificationSystem = () => {
             <Text style={styles.panelTitle}>Notifications</Text>
             <View style={styles.panelActions}>
               {unreadCount > 0 && (
-                <TouchableOpacity onPress={markAllAsRead} style={styles.markAllRead}>
+                <TouchableOpacity
+                 style={styles.markAllRead}
+                 onPress={markAllAsRead}
+                >
                   <Text style={styles.markAllReadText}>Mark all as read</Text>
                 </TouchableOpacity>
               )}
