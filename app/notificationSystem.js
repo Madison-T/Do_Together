@@ -223,6 +223,7 @@ const styles = StyleSheet.create({
     padding: 10,
     width: 300,
     maxHeight: 400,
+    zIndex: 9999, //ensure its on the top
     ...Platform.select({
       web: {
         boxShadow: '0 2px 10px rgba(0, 0, 0, 0.2)',

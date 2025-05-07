@@ -18,7 +18,7 @@ export default function Dashboard ()  {
     return(
         <View style={styles.container}>
           {/** Notification Bell */}
-          <View style={{alignItems: 'flex-end'}}>
+          <View style={styles.notificationWrapper}>
             <NotificationSystem />
           </View>
             <Text style={styles.title}>Do Together</Text>
@@ -132,6 +132,12 @@ const styles = StyleSheet.create({
       marginLeft: 6,
       fontSize: 16,
       fontWeight: '500',
+    },
+    notificationWrapper:{
+      position: 'absolute',
+      top: 40,
+      right: 20,
+      zIndex: 9999, //make it so that it will go to the front rather than behind
     },
   });
 
