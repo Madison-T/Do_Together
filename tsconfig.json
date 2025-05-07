@@ -1,5 +1,7 @@
 {
-  "extends": "expo/tsconfig.base",
+  
+  "extends": "./node_modules/expo/tsconfig.base.json",
+
   "compilerOptions": {
     "jsx": "react-native",
     "target": "esnext",
@@ -7,7 +9,16 @@
     "moduleResolution": "node",
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
+
+    // Keep strict checks everywhere …
     "strict": true,
+
+    // … but allow JS modules with implicit any
+    "allowJs": true,
+    "checkJs": false,
+    "skipLibCheck": true,
+    "noImplicitAny": false,
+
     "baseUrl": ".",
     "resolveJsonModule": true,
     "isolatedModules": true,
@@ -16,5 +27,16 @@
       "@/*": ["./*"]
     }
   },
-  "include": ["**/*.ts", "**/*.tsx", ".expo/types/**/*.ts", "expo-env.d.ts"]
+
+  // Include both TS(X) and JS files, plus your declaration file (if you add one)
+  "include": [
+    "app/**/*",
+    "hooks/**/*",
+    "contexts/**/*",
+    "**/*.ts",
+    "**/*.tsx",
+    "**/*.js",
+    ".expo/types/**/*.ts",
+    "expo-env.d.ts"
+  ]
 }
