@@ -1,0 +1,29 @@
+{
+    "project_info": {
+      "project_number": "238799534169",
+      "project_id": "dotogether-9e024",
+      "storage_bucket": "dotogether-9e024.firebasestorage.app"
+    },
+    "client": [
+      {
+        "client_info": {
+          "mobilesdk_app_id": "1:238799534169:android:925319774fd526ea89d948",
+          "android_client_info": {
+            "package_name": "com.madison.dotogether"
+          }
+        },
+        "oauth_client": [],
+        "api_key": [
+          {
+            "current_key": "AIzaSyBpJcW00n48dHbllBhWbrCriOP3e6FYEuQ"
+          }
+        ],
+        "services": {
+          "appinvite_service": {
+            "other_platform_oauth_client": []
+          }
+        }
+      }
+    ],
+    "configuration_version": "1"
+  }
