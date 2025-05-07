@@ -140,17 +140,8 @@ export const useNotifications = () =>{
             'This is a test notification'
         );
         
-        if(result.success && user && user.uid === targetUserId){
-            const newNotification = {
-                id:result.notificationId,
-                title: 'Test Notification',
-                body: 'This is a test notification',
-                data: {},
-                createdAt: new Date().toISOString(),
-                read: false
-            };
-            setNotifications(prev =>[newNotification, ...prev]);
-            setUnreadCount(prev => prev+1);
+        if(!result.success){
+            console.error("Failed to create test notification: ", error);
         }
     };
 
