@@ -1,12 +1,11 @@
 import { getAuth } from 'firebase/auth';
-import { collection, doc, getFirestore, limit, onSnapshot, orderBy, query, updateDoc } from "firebase/firestore";
-import { getFunctions, httpsCallable } from 'firebase/functions';
+import { addDoc, collection, doc, getFirestore, limit, onSnapshot, orderBy, query, updateDoc } from "firebase/firestore";
 import { useCallback, useEffect, useState } from "react";
 import { useAuthState } from 'react-firebase-hooks/auth';
 import notificationService from '../services/notifications/notificationService';
 
 //custom hook for managing notifications
-export const useNotifictions = () =>{
+export const useNotifications = () =>{
     const [user] = useAuthState(getAuth());
     const [notifications, setNotifications] = useState([]);
     const [unreadCount, setUnreadCount] = useState(0);
@@ -15,12 +14,6 @@ export const useNotifictions = () =>{
     const [permissionState, setPermissionState] = useState(Notification.permission);
 
     const firestore = getFirestore();
-    const functions = getFunctions();
-
-    //Initialise the send notification function
-    const sendNotificationToUser= httpsCallable(functions, 'sendNotificationToUser');
-    const sendBulkNotifications = httpsCallable(functions, 'sendBulkNotifications');
-    const sendTopicNotification = httpsCallable(functions, 'sendTopicNotification');
 
     //Get current permission state
     useEffect(()=>{
@@ -32,19 +25,13 @@ export const useNotifictions = () =>{
     //Request permission for notifications
     const requestPermission = useCallback(async () =>{
         try{
-            if(typeof Notification === 'undefined'){
-                const result = await notificationService.initialize();
-                return resultl
+            const result = await notificationService.initialize();
+
+            if(typeof Notification !== 'undefined'){
+                setPermissionState(Notification.permission);
             }
 
-            const permission = await Notification.requestPermission();
-            setPermissionState(permission);
-
-            if(permission === 'granted'){
-                await notificationService.initialize();
-                return true;
-            }
-            return false;
+            return result;
         }catch(error){
             setError(error);
             return false;
@@ -58,20 +45,44 @@ export const useNotifictions = () =>{
         }
 
         try{
-            const result = await sendNotificationToUser({
-                userId,
+            const result = await notificationService.sendNotification(
+                userId || user.uid,
                 title,
                 body,
-                data,
-                requireAuth: true
-            });
+                data
+            );
 
-            return result.data;
+            if(result.success){
+                const targetUserId = userId || user.uid;
+                await addNotificationToFirestore(targetUserId, title, body, data);
+            }
+
+            return result;
         }catch(error){
             setError(error);
             return {success: false, error: error.message};
         }
-    }, [user, sendNotificationToUser]);
+    }, [user, firestore]);
+
+    //Helper to add notification to Firestore
+    const addNotificationToFirestore = async (targetUserId, title, body, data={}) =>{
+        try{
+            const notificationsRef = collection(firestore, 'users', targetUserId, 'notifications');
+            await addDoc(notificationsRef, {
+                title,
+                body,
+                data,
+                createdAt: new Date(),
+                read: false,
+                senderId: user.uid
+            });
+
+            return true;
+        }catch(error){
+            console.error("Error storing notification in Firestore", error);
+            return false;
+        }
+    };
 
     //Send notifications to multiple users
     const sendNotificationsToMany = useCallback(async(userIds, title, body, data={})=>{
@@ -80,19 +91,25 @@ export const useNotifictions = () =>{
         }
 
         try{
-            const result = await sendBulkNotifications({
+            const result = await notificationService.sendNotificationsToMany({
                 userIds,
                 title,
                 body,
                 data
             });
 
-            return result.data;
+            if(result.success){
+                await Promise.all(
+                    userIds.map(userId => addNotificationToFirestore(userId, title, body, data))
+                );
+            }
+
+            return result;
         }catch(error){
             setError(error);
             return {success:false, error: error.message};
         }
-    }, [user, sendBulkNotifications]);
+    }, [user, firestore]);
 
     //Send a notification to a topic
     const sendToTopic = useCallback(async(topic, title, body, data ={}) =>{
@@ -101,19 +118,19 @@ export const useNotifictions = () =>{
         }
 
         try{
-            const result = await sendTopicNotification({
+            const result = await notificationService.sendToTopic({
                 topic,
                 title,
                 body,
                 data
             });
 
-            return result.data;
+            return result;
         }catch(error){
             setError(error);
             return {success:false, error: error.message};
         }
-    }, [user, sendTopicNotification]);
+    }, [user]);
 
     //Mark a notification as read
     const markAsRead = useCallback(async(notificationId) =>{
@@ -255,6 +272,10 @@ export const useNotifictions = () =>{
         };
     }, [user, firestore]);
 
+    const addLocalNotification = (notification) =>{
+        setNotifications((prev) => [notification, ...prev]);
+    };
+
     return {
         notifications,
         unreadCount,
@@ -267,6 +288,7 @@ export const useNotifictions = () =>{
         sendNotificationsToMany,
         sendToTopic,
         markAsRead,
-        markAllAsRead
+        markAllAsRead,
+        addLocalNotification
     };
 };

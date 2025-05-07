@@ -1,20 +1,71 @@
 import { Ionicons } from '@expo/vector-icons';
+import * as Notifications from 'expo-notifications';
 import { useRouter } from 'expo-router';
-import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import * as SplashScreen from 'expo-splash-screen';
+import React, { useEffect, useState } from 'react';
+import { Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { NotificationSystem } from '../components/NotificationSystem';
 import { useAuth } from '../contexts/AuthContext';
+import notificationService from '../modules/notificationService';
+
+//Keep the splash screen visible 
+SplashScreen.preventAutoHideAsync();
+
+//Configure default notification behaviour
+if(Platform.OS !== 'web'){
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldPlaySound: true,
+      shouldSetBadge: true,
+    }),
+  });
+}
 
 export default function Dashboard ()  {
     const router = useRouter();
     const { logoutUser } = useAuth();
+    const [ready, setReady] = useState(false);
 
     const handleLogout = () =>{
         logoutUser();
         router.replace('/');
     };
 
+    //Initialise notification service
+    useEffect(()=>{
+      async function prepare(){
+        try{
+          await notificationService.initialize();
+  
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }catch(e){
+          console.warn(e);
+        }finally{
+          setReady(true);
+        }
+      }
+
+      prepare();
+    }, []);
+
+    //Handle app being ready
+    useEffect(()=>{
+      if(ready){
+        SplashScreen.hideAsync();
+      }
+    }, [ready]);
+
+    if(!ready){
+      return null;
+    }
+
     return(
         <View style={styles.container}>
+          {/** Notification Bell */}
+          <View style={{alignItems: 'flex-end'}}>
+            <NotificationSystem />
+          </View>
             <Text style={styles.title}>Do Together</Text>
             <Text style={styles.subtitle}>Organise activities with friends</Text>
 

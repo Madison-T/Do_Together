@@ -13,7 +13,7 @@ class NotificationService{
         this.isWebPushSupported = !!messaging;
         this.unsubscribeAuthListener = null;
         this.registeredCallbacks = [];
-        this.deviceType = this.deviceType();
+        this.deviceType = Platform.OS;
     }
 
     //Initialise the notification service
@@ -112,12 +112,12 @@ class NotificationService{
         };
 
         //For ios where FCM doesn't work, instead we show an in app alert
-        if(this.Platform.OS === "ios"){
+        if(Platform.OS === "ios"){
             this.showInAppAlert(message);
         }
 
         //Web notifications for foreground web users
-        if(this.Platform.OS ==='web' && document.visibilityState==='visible'){
+        if(Platform.OS ==='web' && document.visibilityState==='visible'){
             this.showWebNotification(message);
         }
 

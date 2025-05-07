@@ -3,6 +3,7 @@ import React from 'react';
 import { Button, StyleSheet, View } from 'react-native';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
 import { GroupProvider } from '../contexts/GroupContext';
+import { NotificationProvider } from '../contexts/NotificationContext';
 
 const LayoutInner = () => {
   const { user, logoutUser } = useAuth();
@@ -29,7 +30,9 @@ const Layout = () => {
   return (
     <AuthProvider>
       <GroupProvider>
-        <LayoutInner />
+        <NotificationProvider>
+          <LayoutInner />
+        </NotificationProvider>
       </GroupProvider>
     </AuthProvider>
   );

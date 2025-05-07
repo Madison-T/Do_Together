@@ -1,7 +1,8 @@
 import { MaterialIcons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import React, { useState } from 'react';
 import { FlatList, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { useNotifications } from '../hooks/useNotifications';
+import { useNotificationContext } from '../contexts/NotificationContext';
 
 export const NotificationSystem = () => {
   const {
@@ -12,35 +13,36 @@ export const NotificationSystem = () => {
     requestPermission,
     sendNotification,
     markAsRead,
-    markAllAsRead
-  } = useNotifications();
+    markAllAsRead,
+    addLocalNotification
+  } = useNotificationContext();
   
   const [showNotificationList, setShowNotificationList] = useState(false);
 
   // Toggle notifications panel
   const toggleNotificationList = () => {
     setShowNotificationList(prev => !prev);
-    
-    // When opening the panel, mark all as seen (but not necessarily read)
-    if (!showNotificationList) {
-      // This is a visual-only update, not changing read status in DB
-    }
   };
 
   // Send a test notification (for development purposes)
   const sendTestNotification = async () => {
     try {
-      const result = await sendNotification(
-        null, // will default to current user in the cloud function
-        'Test Notification',
-        'This is a test notification from your app!',
-        {
-          timestamp: new Date().toISOString(),
-          test: true
-        }
-      );
+      const testNotification = {
+        id: String(Date.now()),
+        title: 'Test Notification',
+        body: 'This is a test notification from your app!',
+        read: false,
+        createdAt: new Date().toISOString(),
+        data:{
+            type:'added_to_group',
+            groupId: 'test-group-id',
+        },
+      };
       
-      console.log('Test notification sent:', result);
+      addLocalNotification(testNotification);
+      
+      
+      console.log('Test notification sent:');
     } catch (error) {
       console.error('Error sending test notification:', error);
       alert('Failed to send test notification: ' + error.message);
@@ -87,11 +89,36 @@ export const NotificationSystem = () => {
   // Handle notification action based on type
   const handleNotificationAction = (data) => {
     console.log('Handling notification action:', data);
-    // Add navigation or other actions based on notification type
-    // Example:
-    // if (data.type === 'new_activity' && data.activityId) {
-    //   navigation.navigate('ActivityDetails', { activityId: data.activityId });
-    // }
+    if(!data?.type){
+        console.warn("Notification data is missing type");
+        return;
+    }
+
+    switch(data.type){
+        case 'added_to_group':
+            if(data.groupId){
+                router.push({pathname:'/viewGroup', params:{groupId: data.groupId}});
+            }
+            break;
+
+        case 'member_joined_group':
+            if(data.groupId){
+                router.push({pathname:'/viewGroup', params: {groupId: data.groupId}});
+            }
+            break;
+        
+        case 'new_voting_session':
+            //to add
+            break;
+        
+        case 'voting_ended':
+            //to add
+            break;
+        
+        default:
+            console.warn ("Unhandled notification type:", data.type);
+            break;
+    }
   };
 
   return (
@@ -159,7 +186,7 @@ export const NotificationSystem = () => {
       )}
     </View>
   );
-};
+};  
 
 const styles = StyleSheet.create({
   container: {

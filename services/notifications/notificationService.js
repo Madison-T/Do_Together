@@ -50,8 +50,10 @@ class NotificationService {
       // Set up the appropriate notification system based on platform
       if (Platform.OS === 'web' && this.isWebPushSupported) {
         await this.setupWebPushNotifications();
-      } else if (Platform.OS === 'android' || Platform.OS === 'ios') {
+      } else if (Platform.OS === 'android') {
         await this.setupExpoPushNotifications();
+      }else if(Platform.OS === 'ios'){
+        this.setupInAppNotificationListener();
       }
 
       return true;
@@ -103,25 +105,9 @@ class NotificationService {
   }
 
   async setupExpoPushNotifications() {
-    if (Platform.OS === 'web') return false;
+    if (Platform.OS !== 'android') return false;
     
     try {
-      // Request permission for push notifications (iOS)
-      if (Platform.OS === 'ios') {
-        const { status: existingStatus } = await Notifications.getPermissionsAsync();
-        let finalStatus = existingStatus;
-        
-        if (existingStatus !== 'granted') {
-          const { status } = await Notifications.requestPermissionsAsync();
-          finalStatus = status;
-        }
-        
-        if (finalStatus !== 'granted') {
-          console.log('Failed to get push token for push notification!');
-          return false;
-        }
-      }
-
       // Set notification handler for foreground notifications
       Notifications.setNotificationHandler({
         handleNotification: async () => ({
@@ -179,6 +165,27 @@ class NotificationService {
     }
   }
 
+  setupInAppNotificationListener() {
+    const subscription = Notifications.addNotificationReceivedListener(notification =>{
+        console.log("In-app notification (iOS) received:", notification);
+        this.handleIncomingNotification({
+            notification:{
+                title: notification.request?.content?.title || 'Notification',
+                body: notification.request?.content?.body || '',
+            },
+            data: notification.request?.content?.data || {},
+        });
+    });
+
+    this._notificationSubscription = subscription;
+
+    const responseSubscription = Notifications.addNotificationResponseReceivedListener(response =>{
+        this.handleClickAction('default', response.notification?.request?.content?.data || {});
+    });
+
+    this._notificationResponseSubscription = responseSubscription;
+  }
+
   // Register the token with our Firestore database
   async registerTokenWithServer(token) {
     if (!this.userId) {
@@ -204,6 +211,84 @@ class NotificationService {
       return false;
     }
   }
+
+  //Send notification directly using FCM API
+  async sendNotification(targetUserId, title, body , data={}){
+    if(!this.userId){
+        return{success: false, error: "Not authenticated"};
+    }
+
+    try{
+        const tokensSnapshot = await collection (firestore, 'users', targetUserId, 'tokens');
+        const tokens = [];
+        tokensSnapshot.forEach(doc =>{
+            const tokenData = doc.data();
+            if(tokenData?.token){
+                tokens.push(tokenData.token);
+            }
+        });
+
+        if(tokens.length === 0){
+            return {success: false, error: "No valid tokens found for target user"};
+        }
+
+        const fcmEndpoint = 'https://fcm.googleapis.com/fcm/send';
+        const serverKey = process.env.FIREBASE_SERVER_KEY || 'c7b933c28f485b143f4eeb97e7986b75bcdedd69';
+
+        //send to each token
+        const responses = await Promise.all(tokens.map(async(token) =>{
+            const response = await fetch(fcmEndpoint, {
+                method: 'POST',
+                headers:{
+                    'Content-Type': 'application/json',
+                    'Authorization': `key=${serverKey}`
+                },
+                body: JSON.stringify({
+                    to:token,
+                    notification:{
+                        title: title,
+                        body: body,
+                    },
+                    data:{
+                        ...data,
+                        timestamp:new Date().toISOString(),
+                        notificationId: `notification-${Date.now()}`,
+                        senderId: this.userId
+                    }
+                })
+            });
+
+            return response.json();
+        }));
+
+        return {success:true, results: responses};
+    }catch(error){
+        console.error("Error sending notification:", error);
+        return {success: false, error: error.message};
+    }
+  }
+
+  // Send notifications to multiple users
+  async sendNotificationsToMany(userIds, title, body, data = {}) {
+    if (!this.userId) {
+      return { success: false, error: "Not authenticated" };
+    }
+
+    try {
+      const results = await Promise.all(
+        userIds.map(userId => this.sendNotification(userId, title, body, data))
+      );
+      
+      return { 
+        success: true, 
+        results: results
+      };
+    } catch (error) {
+      console.error("Error sending notifications to multiple users:", error);
+      return { success: false, error: error.message };
+    }
+  }
+  
 
   // Handle incoming notifications
   handleIncomingNotification(payload) {
