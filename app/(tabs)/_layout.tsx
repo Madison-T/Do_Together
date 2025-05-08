@@ -1,7 +1,7 @@
 // app/(tabs)/_layout.tsx
 import { Tabs, useRouter } from 'expo-router';
 import React, { useEffect } from 'react';
-import { ActivityIndicator, Button, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { useAuth } from '../../contexts/AuthContext';
 
 export default function TabsLayout() {
@@ -31,19 +31,7 @@ export default function TabsLayout() {
 
   // only authenticated users get these three tabs:
   return (
-    <Tabs
-      screenOptions={{
-        headerRight: () => (
-          <Button
-            title="Log Out"
-            onPress={() => {
-              logoutUser();
-              router.replace('/');
-            }}
-          />
-        ),
-      }}
-    >
+    <Tabs>
       <Tabs.Screen
         name="dashboard"
         options={{ title: 'Dashboard' }}

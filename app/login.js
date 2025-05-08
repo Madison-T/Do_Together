@@ -1,29 +1,42 @@
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { ActivityIndicator, Button, StyleSheet, Text, TextInput, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Button,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
 
-export default function Login () {
-  const { loginUser, loading } = useAuth();
+export default function Login() {
+  const { loginUser, loading, error } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [localError, setLocalError] = useState('');
   const router = useRouter();
 
   const handleLogin = async () => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
     if (!email || !password) {
       setLocalError('Please fill in both fields');
       return;
     }
 
-    setLocalError('');
+    if (!emailRegex.test(email)) {
+      setLocalError('Please enter a valid email');
+      return;
+    }
 
-    const success = await loginUser(email, password); // <-- get the result
+    setLocalError('');
+    const success = await loginUser(email, password);
+
     if (success) {
       alert('Login Successful!');
-      router.replace('/dashboard'); // Login successful ➔ go to dashboard
-    } else {
-      setLocalError('Invalid email or password'); // Login failed ➔ show correct message
+      router.replace('/dashboard');
     }
   };
 
@@ -36,32 +49,76 @@ export default function Login () {
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Login</Text>
-      <TextInput
-        placeholder="Email"
-        value={email}
-        onChangeText={setEmail}
-        autoCapitalize="none"
-        style={styles.input}
-      />
-      <TextInput
-        placeholder="Password"
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
-        style={styles.input}
-      />
-      {localError ? <Text style={styles.error}>{localError}</Text> : null}
-      <Button title="Login" onPress={handleLogin} />
-    </View>
+    <ScrollView contentContainerStyle={styles.scrollContainer} keyboardShouldPersistTaps="handled">
+      <View style={styles.container}>
+        <Text style={styles.title}>Login</Text>
+
+        <Text style={styles.label}>Email Address</Text>
+        <TextInput
+          placeholder="e.g. jane@example.com"
+          placeholderTextColor="#888"
+          value={email}
+          onChangeText={setEmail}
+          autoCapitalize="none"
+          keyboardType="email-address"
+          style={styles.input}
+        />
+
+        <Text style={styles.label}>Password</Text>
+        <TextInput
+          placeholder="Enter your password"
+          placeholderTextColor="#888"
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry
+          style={styles.input}
+        />
+
+        {localError ? <Text style={styles.error}>{localError}</Text> : null}
+        {error ? <Text style={styles.error}>{error}</Text> : null}
+
+        <Button title="Login" onPress={handleLogin} />
+      </View>
+    </ScrollView>
   );
-};
+}
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
-  input: { marginBottom: 10, borderWidth: 1, borderColor: '#ccc', padding: 10 },
-  error: { color: 'red', marginBottom: 10 },
-  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  title: { fontSize: 24, marginBottom: 20 },
+  scrollContainer: {
+    flexGrow: 1,
+    backgroundColor: '#fff',
+  },
+  container: {
+    padding: 24,
+    paddingTop: 48,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: '600',
+    marginBottom: 24,
+    textAlign: 'center',
+  },
+  label: {
+    marginBottom: 4,
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  input: {
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 6,
+    padding: 10,
+    fontSize: 16,
+  },
+  error: {
+    color: 'red',
+    marginBottom: 16,
+    fontSize: 14,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
 });
