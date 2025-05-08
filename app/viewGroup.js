@@ -85,6 +85,39 @@ export default function ViewGroup (){
         }
     };
 
+    //Handel removing a member (admin only)
+    const handleRemoveMember = async (memberId) => {
+        try {
+            const result = await removeMember(groupId, memberId);
+            if (result.success) {
+                //Update members locally
+                if (result.success) {
+                    setMembers(members.filter(member => member.id !== memberId));
+                    Alert.alert("Success", "Member removed successfully");
+                } else {
+                    Alert.alert("Error", result.message || "Failed to remove member");
+                }
+            } else {
+                Alert.alert("Error", result.message || "Failed to remove member");
+            }
+        } catch (error) {
+            console.error("Error removing member:", error);
+            Alert.alert("Error", "Failed to remove member. Please try again.");
+        }
+    }
+
+    // Remove member design
+    const removeMemberDesign = (member) => {
+        return isCreator && member.id !== currentUserId ? (
+            <TouchableOpacity 
+                style={styles.removeButton}
+                onPress={() => handleRemoveMember(member.id, member.name)}
+            >
+                <Ionicons name="person-remove-outline" size={20} color="#f44336" />
+            </TouchableOpacity>
+        ) : null;
+    };
+
     //TO DO STILL 
     const handleCreateActivity = () =>{
 
@@ -149,6 +182,7 @@ export default function ViewGroup (){
                             {member.name} {member.id === groupDetails?.createdBy && '(Creator)'} 
                             {member.id === currentUserId && ' (You)'}
                             </Text>
+                                {removeMemberDesign(member)}
                         </View>
                         ))}
                     </View>
@@ -308,6 +342,12 @@ const styles = StyleSheet.create({
         marginLeft: 8,
         fontSize: 16,
     },
+    removeButton: {
+        marginLeft: 10,
+        padding: 8,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
     createActivityButton: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -370,5 +410,13 @@ const styles = StyleSheet.create({
         fontSize: 14,
         color: '#aaa',
         marginTop: 4,
+    },
+    joinCodeText: {
+        fontSize: 20,
+        fontWeight: 'bold',
+        color: '#3f51b5',
+        textAlign: 'center',
+        marginBottom: 12,
+        letterSpacing: 1.2,
     },
 });

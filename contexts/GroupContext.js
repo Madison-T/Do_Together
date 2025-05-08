@@ -191,6 +191,77 @@ export const GroupProvider = ({ children }) => {
         }
     };
 
+    //Remove member from group (admin only)
+    const removeMember = async (groupId, memberId) => {
+        setLoading(true);
+        setError(null);
+        try {
+            if (!currentUser) {
+                throw new Error("User not authenticated");
+            }
+
+            //fetch the group
+            const group = await FirestoreService.fetchGroupById(groupId);
+            if (!group) {
+                throw new Error("Group not found");
+            }
+
+            //checking if current user is the admin
+            if(group.createdBy !== currentUser.uid) {
+                setError("Only the group creator can remove members");
+                return {
+                    success: false,
+                    message: "Only the group creator can remove members"
+                };
+            }
+
+            //checking if target user is a member
+            if (!group.members || !group.members.includes(memberId)) {
+                setError("User is not a member of this group");
+                return {
+                    success: false,
+                    message: "User is not a member of this group"
+                };
+            }
+
+            //prevent admin from removing themselves
+            if (memberId === currentUser.uid) {
+                setError("Admin cannot remove themselves from the group");
+                return {
+                    success: false,
+                    message: "Admin cannot remove themselves from the group"
+                };
+            }
+
+            //remove member from the group
+            const updatedMembers = group.members.filter(id => id !== memberId);
+            await FirestoreService.updateGroup(groupId, { members: updatedMembers });
+
+            //if the current user is viewing their own groups, refresh them
+            if (currentUser.uid === memberId) {
+                setGroups(groups.filter(group => group.id !== groupId));
+            } else {
+                //else, update the current group members local state
+                setGroups(groups.map(group => {
+                    if (group.id === groupId) {
+                        return { ...group, members: updatedMembers };
+                    }
+                    return group;
+                }));
+            }
+            return {
+                success: true,
+                message: "Member removed successfully",
+            };
+        } catch (error) {
+            setError("Failed to remove member from group");
+            console.error("Error removing member from group", error);
+            throw error;
+        } finally {
+            setLoading(false);
+        }
+    };
+
     //This is to remove the error code when pressing back
     const clearError = () =>{
         setError(null);
@@ -209,6 +280,7 @@ export const GroupProvider = ({ children }) => {
         createGroup,
         joinGroup,
         leaveGroup,
+        removeMember,
         createActivity,
         clearError,
         refreshGroups: () => currentUser && fetchUserGroups(currentUser.uid),
