@@ -132,7 +132,7 @@ export const useNotifications = () =>{
 
     // Changing this to test actual notifications
     const addLocalNotification = async() =>{
-        const targetUserId = 'PP84Kawv6WNDa8C046iEpreeoAg2';
+        const targetUserId = user.uid;
 
         const result = await createNotification(
             targetUserId, 
