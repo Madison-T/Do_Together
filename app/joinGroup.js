@@ -3,11 +3,15 @@ import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, SafeAreaView,
 
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import { collection, getDocs, query, where } from 'firebase/firestore';
 import { useGroupContext } from '../contexts/GroupContext';
+import { useNotificationContext } from '../contexts/NotificationContext';
+import { auth, firestore } from '../firebaseConfig';
 
 export default function JoinGroup() {
   const [groupCode, setGroupCode] = useState('');
   const { joinGroup, loading, error, clearError} = useGroupContext();
+  const { sendToGroup} = useNotificationContext();
 
   const handleJoinGroup = async () => {
     if (!groupCode.trim()) {
@@ -19,6 +23,39 @@ export default function JoinGroup() {
       const result = await joinGroup(groupCode);
 
       if (result.success) {
+        //get current user details
+        const currentUser = auth.currentUser;
+        const userName = currentUser?.displayName || 'A new member';
+
+        //Create a notification for all group members about the new join
+        try{
+          const membersRef = collection(firestore, 'Groups');
+          const membersQuery = query(
+            membersRef,
+            where('groupId', '==', result.groupId),
+            where('members', '!=', currentUser.uid),
+          );
+
+          const membersSnapshot = await getDocs(membersQuery);
+          if(!membersSnapshot.empty){
+            const memberIds = membersSnapshot.docs.map(doc => doc.data().userId);
+
+            await sendToGroup(
+              result.groupId,
+              memberIds,
+              'New Member Joined',
+              `${userName} has joined the group "${result.groupName}"`,
+              {
+                type: 'member_joined_group',
+                id: result.groupId
+              }
+            );
+          }
+
+          console.log("Member joined notification sent successfully");
+        }catch(notificationError){
+          console.error("Failed to send notification: ", notificationError);
+        }
         router.push(`/viewGroup?groupId=${result.groupId}&groupName=${result.groupName}`);
         setGroupCode('') ;
       } else {
