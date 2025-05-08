@@ -8,7 +8,7 @@ import * as FirestoreService from '../hooks/useFirestore';
 
 export default function ViewGroup (){
     const { groupId, groupName} = useLocalSearchParams();
-    const { leaveGroup, loading, error} = useGroupContext();
+    const { leaveGroup, removeMember, loading, error} = useGroupContext();
 
     const [groupDetails, setGroupDetails] = useState(null);
     const [members, setMembers] = useState([]);
@@ -173,16 +173,18 @@ export default function ViewGroup (){
                     <View style={styles.membersList}>
                         {members.map((member) => (
                         <View key={member.id} style={styles.memberItem}>
-                            <View style={styles.memberAvatar}>
-                            <Text style={styles.memberInitial}>
-                                {member.name.charAt(0).toUpperCase()}
-                            </Text>
+                            <View style={styles.memberInfo}>
+                                <View style={styles.memberAvatar}>
+                                    <Text style={styles.memberInitial}>
+                                        {member.name.charAt(0).toUpperCase()}
+                                    </Text>
+                                </View>
+                                <Text style={styles.memberName}>
+                                    {member.name} {member.id === groupDetails?.createdBy && '(Creator)'} 
+                                    {member.id === currentUserId && ' (You)'}
+                                </Text>
                             </View>
-                            <Text style={styles.memberName}>
-                            {member.name} {member.id === groupDetails?.createdBy && '(Creator)'} 
-                            {member.id === currentUserId && ' (You)'}
-                            </Text>
-                                {removeMemberDesign(member)}
+                            {removeMemberDesign(member)}
                         </View>
                         ))}
                     </View>
@@ -304,7 +306,8 @@ const styles = StyleSheet.create({
     memberItem: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingVertical: 8,
+        justifyContent: 'space-between',
+        paddingVertical: 12,
         borderBottomWidth: 1,
         borderBottomColor: '#eee',
     },
@@ -316,6 +319,11 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
         marginRight: 10,
+    },
+    memberInfo: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        flex: 1,
     },
     memberInitial: {
         color: '#fff',
