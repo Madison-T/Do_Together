@@ -37,11 +37,11 @@ export default function TabsLayout() {
         options={{ title: 'Dashboard' }}
       />
       <Tabs.Screen
-        name="swipe"
+        name="swipe/index"
         options={{ title: 'Swipe' }}
       />
       <Tabs.Screen
-        name="history"
+        name="history/index"
         options={{ title: 'History' }}
       />
     </Tabs>
