@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, Modal, SafeAreaView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import * as FirestoreService from '../hooks/useFirestore';
+import { useNotifications } from '../hooks/useNotifications';
 
 export default function UserSearchModal({visible, onClose, onAddUser, currentMembers, groupId}){
     const [searchQuery, setSearchQuery] = useState('');
@@ -9,6 +10,8 @@ export default function UserSearchModal({visible, onClose, onAddUser, currentMem
     const [filteredUsers, setFilteredUsers] = useState([]);
     const [loading, setLoading] = useState(false);
     const [selectedUsers, setSelectedUsers] = useState([]);
+
+    const {sendNotificationsToMany} = useNotifications();
 
     useEffect(()=>{
         if(visible){
@@ -54,6 +57,14 @@ export default function UserSearchModal({visible, onClose, onAddUser, currentMem
         }
         try{
             await onAddUser(selectedUsers);
+            const title = 'Added to Group';
+            const body = `You've been added to the group "${groupId.name}".`;
+            const data={
+                id: groupId,
+                type: 'added_to_group'
+            };
+
+            await sendNotificationsToMany(selectedUsers, title, body, data);
             setSelectedUsers([]);
             setSearchQuery('');
             onClose();
@@ -140,7 +151,7 @@ export default function UserSearchModal({visible, onClose, onAddUser, currentMem
                         ): filteredUsers.length === 0 ? (
                             <View style={styles.emptyStateContainer}>
                                 <Text style={styles.emptyStateText}>
-                                    No users found matching "{searchQuery}"
+                                    No users found matching {searchQuery}
                                 </Text>
                             </View>
                         ):(
