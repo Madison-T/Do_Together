@@ -1,4 +1,4 @@
-import { collection, deleteDoc, doc, getDoc, getDocs, setDoc, updateDoc } from 'firebase/firestore';
+import { collection, deleteDoc, doc, getDoc, getDocs, orderBy, query, setDoc, updateDoc, where } from 'firebase/firestore';
 import { firestore } from '../firebaseConfig';
 
 // ===================== USERS =====================
@@ -69,13 +69,16 @@ export const deleteUser = async (userId) => {
 // ===================== GROUPS =====================
 
 // Adding Group
-export const addGroup = async (groupId, name, description, members) => {
+export const addGroup = async (groupId, name, description, members, createdBy, joinCode) => {
   try {
     await setDoc(doc(firestore, 'Groups', groupId), {
       name,
       description,
       members,
+      createdBy,
       createdAt: new Date().toISOString(),
+      joinCode,
+      
     });
     console.log('Group added successfully');
   } catch (error) {
@@ -93,6 +96,32 @@ export const fetchGroups = async () => {
     console.error('Error fetching groups: ', error);
   }
 };
+
+//Fetch a specific group
+export const fetchGroupById = async (groupId) =>{
+  try{
+    const groupDoc = await getDoc(doc(firestore, 'Groups', groupId));
+    if(groupDoc.exists()){
+      return {id: groupDoc.id, ...groupDoc.data()};
+    }else{
+      console.log("No such group found");
+      return null;
+    }
+  }catch(error){
+    console.error("Error fetch group: ", error);
+  }
+};
+
+//Fetch groups for a specific user
+export const fetchUserGroups = async (userId) =>{
+  try{
+    const snapshot = await getDocs(collection(firestore, 'Groups'));
+    const groups = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()})).filter(group => group.members && group.members.includes(userId));
+    return groups;
+  }catch(error){
+    console.error("Error fetching user groups: ", error);
+  }
+}
 
 // Updating Group
 export const updateGroup = async (groupId, updatedData) => {
@@ -114,6 +143,68 @@ export const deleteGroup = async (groupId) => {
     console.log(`Group with ID: ${groupId} deleted successfully`);
   } catch (error) {
     console.error('Error deleting group: ', error);
+  }
+};
+
+//Finding a group by groupID code
+export const findGroupByCode = async(code) =>{
+  try{
+    const snapshot = await getDocs(collection(firestore, 'Groups'));
+    const groups = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()}));
+    const group = groups.find(g=> g.joinCode === code);
+    return group || null;
+  }catch(error){
+    console.error("Error find group by code:", error);
+  }
+};
+
+export const addMemberToGroup = async(groupId, userId) =>{
+  try{
+    const groupDoc = await getDoc(doc(firestore, 'Groups', groupId));
+    if(!groupDoc.exists()){
+      throw new Error("Group not found");
+    }
+
+    const groupData = groupDoc.data();
+    const members = groupData.members || [];
+    if(members.includes(userId)){
+      console.log("User is already a member of this group");
+      return;
+    }
+
+    await updateDoc(doc(firestore, 'Groups', groupId), {
+      members: [...members, userId],
+      updatedAt: new Date().toISOString(),
+    });
+
+    console.log(`User ${userId} added to group ${groupId} successfully`);
+  }catch(error){
+    console.log("Error adding member to group", error);
+  }
+};
+
+export const removeMemberFromGroup = async(groupId, userId) =>{
+  try{
+    const groupDoc = await getDoc(doc(firestore, 'Groups', groupId));
+    if(!groupDoc.exists()){
+      throw new Error("Group not found");
+    }
+
+    const groupData = groupDoc.data();
+    const members = groupData.members || [];
+
+    if(!members.includes(userId)){
+      console.log("User is not a member of this group");
+      return;
+    }
+
+    await updateDoc(doc(firestore, 'Groups', groupId),{
+      members: members.filter(memberId => memberId !== userId),
+      updatedAt: new DataTransfer().toISOString(),
+    });
+    console.log(`User ${userId} removed from group ${groupId} successfully`);
+  }catch(error){
+    console.error("Error removing member from group", error);
   }
 };
 
@@ -218,3 +309,53 @@ export const deleteActivity = async (activityId) => {
     console.error('Error deleting activity: ', error);
   }
 };
+
+//Fetch activity by group id
+export const fetchActivitiesByGroupId = async(groupId) =>{
+  try{
+    const activitiesRef = collection(firestore, 'Activities');
+    const q = query(
+      activitiesRef,
+      where('groupId', '==', groupId),
+      orderBy('createdAt', 'desc')
+    );
+
+    const snapshot = await getDocs(q);
+    const activities = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()}));
+
+    console.log('Activities for group fetched successfully');
+    return activities;
+  }catch(error){
+    console.error("Error fetching activites by group id", error);
+  }
+}
+
+// Record a vote (yes or no)
+export const voteOnActivity = async (userId, activityId, groupId, voteType) => {
+  try {
+    await setDoc(doc(firestore, 'Votes', `${userId}_${activityId}`), {
+      userId,
+      activityId,
+      groupId,
+      vote: voteType,
+      createdAt: new Date().toISOString(),
+    });
+    console.log(`Vote '${voteType}' recorded for activity ${activityId}`);
+  } catch (error) {
+    console.error('Error voting on activity:', error);
+  }
+};
+
+// Fetch votes for a specific user
+export const fetchUserVotes = async (userId) => {
+  try {
+    const snapshot = await getDocs(collection(firestore, 'Votes'));
+    return snapshot.docs
+      .map(doc => doc.data())
+      .filter(vote => vote.userId === userId);
+  } catch (error) {
+    console.error('Error fetching votes:', error);
+    return [];
+  }
+};
+
