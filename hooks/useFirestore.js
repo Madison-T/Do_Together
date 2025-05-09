@@ -208,6 +208,28 @@ export const removeMemberFromGroup = async(groupId, userId) =>{
   }
 };
 
+//Adding multiple users to a group
+export const addUsersToGroup = async(groupId, userIds)=>{
+  try{
+    //First get the current group data
+    const groupDoc = await fetchGroupById(groupId);
+    if(!groupDoc){
+      throw new Error("Group not found");
+    }
+
+    //Creat a new members array with unique members only
+    const currentMembers = groupDoc.members || [];
+    const newMembers = [...new Set([...currentMembers, ...userIds])];
+
+    //Update the group document with the new members
+    await updateGroup(groupId, {members: newMembers});
+    return true;
+  }catch(error){
+    console.error("Error adding multiple users to a group", error);
+    throw error;
+  }
+}
+
 // ===================== VOTES =====================
 
 // Adding Vote

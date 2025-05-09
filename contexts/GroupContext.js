@@ -191,6 +191,43 @@ export const GroupProvider = ({ children }) => {
         }
     };
 
+    const addUsersToGroup = async (groupId, userIds) =>{
+        setLoading(true);
+        setError(null);
+        try{
+            if(!currentUser){
+                throw new Error("User not authenticated");
+            }
+
+            //Fetch the group to check if the current user is the admin
+            const group = await FirestoreService.fetchGroupById(groupId);
+            if(!group){
+                throw new Error("Group not found");
+            }
+
+            //Check if the current user is the admin
+            if(group.createdBy !== currentUser.uid){
+                setError("Only the group admin can add members");
+                setLoading(false);
+                return{success: false, message: "Only the group admin can add members"};
+            }
+
+            //Add the users to the group
+            await FirestoreService.addUsersToGroup(groupId, userIds);
+
+            //Refresh the groups to update the ui
+            await fetchUserGroups(currentUser.uid);
+
+            return{success: true, message: "Successfully added members by search"};
+        }catch(error){
+            setError("Failed to add users to group");
+            console.error("Error adding users to group by search", error);
+            throw error;
+        }finally{
+            setLoading(false);
+        }
+    }
+
     //This is to remove the error code when pressing back
     const clearError = () =>{
         setError(null);
@@ -211,6 +248,7 @@ export const GroupProvider = ({ children }) => {
         leaveGroup,
         createActivity,
         clearError,
+        addUsersToGroup,
         refreshGroups: () => currentUser && fetchUserGroups(currentUser.uid),
     };
 
