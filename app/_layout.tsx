@@ -3,6 +3,7 @@ import React from 'react';
 import { StyleSheet } from 'react-native';
 import { AuthProvider } from '../contexts/AuthContext';
 import { GroupProvider } from '../contexts/GroupContext';
+import { NotificationProvider } from '../contexts/NotificationContext';
 
 const LayoutInner = () => {
   return <Stack />;
@@ -12,7 +13,9 @@ const Layout = () => {
   return (
     <AuthProvider>
       <GroupProvider>
-        <LayoutInner />
+        <NotificationProvider>
+          <LayoutInner />
+        </NotificationProvider>
       </GroupProvider>
     </AuthProvider>
   );
