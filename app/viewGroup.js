@@ -9,7 +9,7 @@ import UserSearchModal from "./userSearchModal";
 
 export default function ViewGroup (){
     const { groupId, groupName} = useLocalSearchParams();
-    const { leaveGroup } = useGroupContext();
+    const { leaveGroup, removeMember, loading, error} = useGroupContext();
 
     const [groupDetails, setGroupDetails] = useState(null);
     const [members, setMembers] = useState([]);
@@ -88,6 +88,39 @@ export default function ViewGroup (){
             console.error("Error leaving group:", error);
             Alert.alert("Error", "Failed to leave group. Please try again.");
         }
+    };
+
+    //Handel removing a member (admin only)
+    const handleRemoveMember = async (memberId) => {
+        try {
+            const result = await removeMember(groupId, memberId);
+            if (result.success) {
+                //Update members locally
+                if (result.success) {
+                    setMembers(members.filter(member => member.id !== memberId));
+                    Alert.alert("Success", "Member removed successfully");
+                } else {
+                    Alert.alert("Error", result.message || "Failed to remove member");
+                }
+            } else {
+                Alert.alert("Error", result.message || "Failed to remove member");
+            }
+        } catch (error) {
+            console.error("Error removing member:", error);
+            Alert.alert("Error", "Failed to remove member. Please try again.");
+        }
+    }
+
+    // Remove member design
+    const removeMemberDesign = (member) => {
+        return isCreator && member.id !== currentUserId ? (
+            <TouchableOpacity 
+                style={styles.removeButton}
+                onPress={() => handleRemoveMember(member.id, member.name)}
+            >
+                <Ionicons name="person-remove-outline" size={20} color="#f44336" />
+            </TouchableOpacity>
+        ) : null;
     };
 
     //handling adding users to the group
@@ -172,15 +205,18 @@ export default function ViewGroup (){
                     <View style={styles.membersList}>
                         {members.map((member) => (
                         <View key={member.id} style={styles.memberItem}>
-                            <View style={styles.memberAvatar}>
-                            <Text style={styles.memberInitial}>
-                                {member.name.charAt(0).toUpperCase()}
-                            </Text>
+                            <View style={styles.memberInfo}>
+                                <View style={styles.memberAvatar}>
+                                    <Text style={styles.memberInitial}>
+                                        {member.name.charAt(0).toUpperCase()}
+                                    </Text>
+                                </View>
+                                <Text style={styles.memberName}>
+                                    {member.name} {member.id === groupDetails?.createdBy && '(Creator)'} 
+                                    {member.id === currentUserId && ' (You)'}
+                                </Text>
                             </View>
-                            <Text style={styles.memberName}>
-                            {member.name} {member.id === groupDetails?.createdBy && '(Creator)'} 
-                            {member.id === currentUserId && ' (You)'}
-                            </Text>
+                            {removeMemberDesign(member)}
                         </View>
                         ))}
                     </View>
@@ -295,11 +331,6 @@ const styles = StyleSheet.create({
     joinCodeContainer:{
         marginTop: -8,
     },
-    joinCodeText:{
-        fontSize: 16,
-        color: '#555',
-        marginBottom: 16,
-    },
     shareButton: {
         backgroundColor: '#3f51b5',
         flexDirection: 'row',
@@ -331,7 +362,8 @@ const styles = StyleSheet.create({
     memberItem: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingVertical: 8,
+        justifyContent: 'space-between',
+        paddingVertical: 12,
         borderBottomWidth: 1,
         borderBottomColor: '#eee',
     },
@@ -343,6 +375,11 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
         marginRight: 10,
+    },
+    memberInfo: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        flex: 1,
     },
     memberInitial: {
         color: '#fff',
@@ -368,6 +405,12 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         marginLeft: 8,
         fontSize: 16,
+    },
+    removeButton: {
+        marginLeft: 10,
+        padding: 8,
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     createActivityButton: {
         flexDirection: 'row',
@@ -431,5 +474,13 @@ const styles = StyleSheet.create({
         fontSize: 14,
         color: '#aaa',
         marginTop: 4,
+    },
+    joinCodeText: {
+        fontSize: 20,
+        fontWeight: 'bold',
+        color: '#3f51b5',
+        textAlign: 'center',
+        marginBottom: 12,
+        letterSpacing: 1.2,
     },
 });
