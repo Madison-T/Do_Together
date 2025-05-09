@@ -36,7 +36,7 @@ export default function Login() {
 
     if (success) {
       alert('Login Successful!');
-      router.replace('/dashboard');
+      router.replace('/(tabs)/dashboard');
     }
   };
 
