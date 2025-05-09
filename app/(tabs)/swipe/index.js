@@ -256,7 +256,8 @@ const styles = StyleSheet.create({
   buttons: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    marginTop: 30,
+    marginTop: 0,
+    marginBottom: 110,
     paddingHorizontal: 60,
   },
   button:{
