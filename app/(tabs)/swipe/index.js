@@ -40,7 +40,7 @@ export default function SwipeScreen() {
       if(gesture.dx > SWIPE_THRESHOLD){
         swipeRight();
       }else if(gesture.dx < -SWIPE_THRESHOLD){
-        swipeRight();
+        swipeLeft();
       }else{
         resetPosition();
       }
