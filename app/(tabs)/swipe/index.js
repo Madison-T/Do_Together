@@ -59,11 +59,8 @@ export default function SwipeScreen() {
         all = dummyData;
       }
 
-      const dislikedIds = votes
-        .filter(v => v.vote === 'no')
-        .map(v => v.activityId);
-
-      const visible = all.filter(activity => !dislikedIds.includes(activity.id));
+      const votedIds = votes.map(v => v.activityId);
+      const visible = all.filter(activity => !votedIds.includes(activity.id));
       setActivities(visible);
     };
 

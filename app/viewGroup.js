@@ -5,15 +5,17 @@ import { ActivityIndicator, Alert, SafeAreaView, ScrollView, Share, StyleSheet, 
 import { useGroupContext } from "../contexts/GroupContext";
 import { auth } from '../firebaseConfig';
 import * as FirestoreService from '../hooks/useFirestore';
+import UserSearchModal from "./userSearchModal";
 
 export default function ViewGroup (){
     const { groupId, groupName} = useLocalSearchParams();
-    const { leaveGroup, loading, error} = useGroupContext();
+    const { leaveGroup } = useGroupContext();
 
     const [groupDetails, setGroupDetails] = useState(null);
     const [members, setMembers] = useState([]);
     const [ activity, setActivity] = useState([]); //MAY NEED TO CHANGE
     const [loadingData, setLoadingData] = useState(true);
+    const [isAddMemberModalVisible, setIsAddMemberModalVisible] = useState(false);
 
     //Current user id
     const currentUserId = auth.currentUser?.uid;
@@ -21,39 +23,42 @@ export default function ViewGroup (){
     //Check if the user is the creater of the group
     const isCreator = groupDetails?.createdBy === currentUserId;
 
+    //function to fetch group details and member information
+    const fetchGroupData = async() =>{
+        setLoadingData(true);
+
+        try{
+            //check that the group exisits
+            const group = await FirestoreService.fetchGroupById(groupId);
+            setGroupDetails(group);
+
+            //Fetch member details
+            const memberDetails = await Promise.all(
+                (group.members || []).map(async(memberId) =>{
+                    try{
+                        const user = await FirestoreService.fetchUserById(memberId);
+                        return {id: memberId, name: user?.name || 'Unknown User'};
+                    }catch(error){
+                        console.log("Error fetching member", error);
+                        return {id: memberId, name: 'Unknown User'};
+                    }
+                }) 
+            );
+
+            setMembers(memberDetails);
+
+            const fetchActivities = await FirestoreService.fetchActivitiesByGroupId(groupId);
+            setActivity(fetchActivities || []);
+        }catch(error){
+            console.log("Error fetching group details", error);
+        }finally{
+            setLoadingData(false);
+        }
+    };
+
     useEffect(()=>{
-        const fetchGroupDetails = async () =>{
-            setLoadingData(true);
-            try{
-                //check that the group exists
-                const group = await FirestoreService.fetchGroupById(groupId);
-                setGroupDetails(group);
-
-                //Fetch member details
-                const memberDetails = await Promise.all(
-                    (group.members || []).map(async(memberId) =>{
-                        try{
-                            const user = await FirestoreService.fetchUserById(memberId);
-                            return { id: memberId, name: user?.name || 'Unknown User'};
-                        }catch(error){
-                            console.log("Error fetching member", error);
-                            return {id: memberId, name: 'Unknown User'};
-                        }
-                    })
-                );
-                setMembers(memberDetails);
-
-                const fetchActivities = await FirestoreService.fetchActivitiesByGroupId(groupId);
-                setActivity(fetchActivities || []); //MAY NEED TO CHANGE
-            }catch(error){
-                console.log("Error fetching group details", error);
-            }finally{
-                setLoadingData(false);
-            }
-        };
-
         if(groupId){
-            fetchGroupDetails();
+            fetchGroupData();
         }
     }, [groupId]);
 
@@ -84,6 +89,22 @@ export default function ViewGroup (){
             Alert.alert("Error", "Failed to leave group. Please try again.");
         }
     };
+
+    //handling adding users to the group
+    const handleAddUsers = async (userIds) =>{
+        try{
+            const result = await FirestoreService.addUsersToGroup(groupId, userIds);
+
+            if(result.success){
+                Alert.alert("Success", result.message);
+                await fetchGroupData();
+            }else{
+                Alert.alert("Error", result.message);
+            }
+        }catch(error){
+            console.error("Error adding members", error);
+        }
+    }
 
     //TO DO STILL 
     const handleCreateActivity = () =>{
@@ -136,7 +157,18 @@ export default function ViewGroup (){
 
                 {/** Members Section */}
                 <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Members ({members.length})</Text>
+                    <View style={styles.sectionHeader}>
+                        <Text style={styles.sectionTitle}>Members ({members.length})</Text>
+                        {isCreator && (
+                            <TouchableOpacity
+                                style={styles.addMemberButton}
+                                onPress={() => setIsAddMemberModalVisible(true)}
+                            >
+                                <Ionicons name="person-add-outline" size={20} color="#3f51b5" />
+                                <Text style={styles.addMemberText}>Add Member</Text>
+                            </TouchableOpacity>
+                        )}
+                    </View>
                     <View style={styles.membersList}>
                         {members.map((member) => (
                         <View key={member.id} style={styles.memberItem}>
@@ -155,7 +187,7 @@ export default function ViewGroup (){
                 </View>
 
                 {/** Activities Section*/}
-                <View styles={styles.section}>
+                <View style={styles.section}>
                     <View style={styles.sectionHeader}>
                         <Text style={styles.sectionTitle}>Activities</Text>
                         <TouchableOpacity style={styles.createActivityButton} onPress={handleCreateActivity}>
@@ -184,6 +216,18 @@ export default function ViewGroup (){
                     </TouchableOpacity>
                 )}
             </ScrollView>
+
+            {/**User Search Modal */}
+            <UserSearchModal
+                visible={isAddMemberModalVisible}
+                onClose={() => setIsAddMemberModalVisible(false)}
+                onAddUser={async(userIds) =>{
+                    await handleAddUsers(userIds);
+                    setIsAddMemberModalVisible(false);
+                }}
+                currentMembers={members.map(member=>member.id)}
+                groupId={groupId}
+            />
         </SafeAreaView>
     );
 }
@@ -248,6 +292,14 @@ const styles = StyleSheet.create({
         color: '#555',
         lineHeight: 22,
     },
+    joinCodeContainer:{
+        marginTop: -8,
+    },
+    joinCodeText:{
+        fontSize: 16,
+        color: '#555',
+        marginBottom: 16,
+    },
     shareButton: {
         backgroundColor: '#3f51b5',
         flexDirection: 'row',
@@ -263,6 +315,15 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         marginLeft: 8,
         fontSize: 16,
+    },
+    addMemberButton:{
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    addMemberText:{
+        color: '#3f51b5',
+        marginLeft: 4,
+        fontWeight: '600',
     },
     membersList: {
         marginTop: 8,

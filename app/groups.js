@@ -60,7 +60,7 @@ export default function Groups(){
     );
 
     if(loading){
-        return (
+        return (  
             <SafeAreaView style={styles.loadingContainer}>
                 <ActivityIndicator size="large" color="#3f51b5" />
             </SafeAreaView>
