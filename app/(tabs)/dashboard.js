@@ -74,6 +74,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
+    marginBottom: 50,
   },
   title: {
     fontSize: 28,
@@ -127,7 +128,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 40,
+    marginTop: 10,
     paddingVertical: 12,
   },
   logoutText: {

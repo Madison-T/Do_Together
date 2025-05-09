@@ -37,13 +37,13 @@ export default function TabsLayout(): JSX.Element | null {
             headerShown: true,
             tabBarStyle: {
               position: 'absolute',
-              bottom: 50,
+              bottom: 20,
               left: 16,
               right: 16,
               borderRadius: 30,
-              height: 70,
+              height: 60,
               backgroundColor: '#fff',
-              elevation: 8,
+              elevation: 5,
               shadowColor: '#000',
               shadowOffset: { width: 0, height: 4 },
               shadowOpacity: 0.1,
@@ -53,8 +53,8 @@ export default function TabsLayout(): JSX.Element | null {
               let iconName: keyof typeof Ionicons.glyphMap = 'help';
 
               if (route.name === 'dashboard') iconName = 'grid';
-              else if (route.name === 'swipe') iconName = 'heart';
-              else if (route.name === 'history') iconName = 'time';
+              else if (route.name === 'swipe/index') iconName = 'heart';
+              else if (route.name === 'history/index') iconName = 'time';
 
               return <Ionicons name={iconName} size={size} color={color} />;
             },
