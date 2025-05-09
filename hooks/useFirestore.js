@@ -329,3 +329,33 @@ export const fetchActivitiesByGroupId = async(groupId) =>{
     console.error("Error fetching activites by group id", error);
   }
 }
+
+// Record a vote (yes or no)
+export const voteOnActivity = async (userId, activityId, groupId, voteType) => {
+  try {
+    await setDoc(doc(firestore, 'Votes', `${userId}_${activityId}`), {
+      userId,
+      activityId,
+      groupId,
+      vote: voteType,
+      createdAt: new Date().toISOString(),
+    });
+    console.log(`Vote '${voteType}' recorded for activity ${activityId}`);
+  } catch (error) {
+    console.error('Error voting on activity:', error);
+  }
+};
+
+// Fetch votes for a specific user
+export const fetchUserVotes = async (userId) => {
+  try {
+    const snapshot = await getDocs(collection(firestore, 'Votes'));
+    return snapshot.docs
+      .map(doc => doc.data())
+      .filter(vote => vote.userId === userId);
+  } catch (error) {
+    console.error('Error fetching votes:', error);
+    return [];
+  }
+};
+
