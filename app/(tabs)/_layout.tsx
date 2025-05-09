@@ -61,8 +61,8 @@ export default function TabsLayout(): JSX.Element | null {
           })}
         >
           <Tabs.Screen name="dashboard" options={{ title: 'Dashboard' }} />
-          <Tabs.Screen name="swipe" options={{ title: 'Swipe' }} />
-          <Tabs.Screen name="history" options={{ title: 'History' }} />
+          <Tabs.Screen name="swipe/index" options={{ title: 'Swipe' }} />
+          <Tabs.Screen name="history/index" options={{ title: 'History' }} />
         </Tabs>
       </VotesProvider>
     </GroupProvider>
