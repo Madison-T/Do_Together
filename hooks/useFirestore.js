@@ -381,3 +381,42 @@ export const fetchUserVotes = async (userId) => {
   }
 };
 
+export const addPresetList = async (listId, title, activities) => {
+  try {
+    await setDoc(doc(firestore, 'PresetLists', listId), {
+      title,
+      activities,
+      createdAt: new Date().toISOString(),
+    });
+    console.log('Preset list added');
+  } catch (error) {
+    console.error('Error adding preset list:', error);
+  }
+};
+
+// Fetch all preset lists
+export const fetchPresetLists = async () => {
+  try {
+    const snapshot = await getDocs(collection(firestore, 'PresetLists'));
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  } catch (error) {
+    console.error('Error fetching preset lists:', error);
+    return [];
+  }
+};
+
+// Fetch a single preset list by ID
+export const fetchPresetListById = async (listId) => {
+  try {
+    const docSnap = await getDoc(doc(firestore, 'PresetLists', listId));
+    if (docSnap.exists()) {
+      return { id: docSnap.id, ...docSnap.data() };
+    } else {
+      return null;
+    }
+  } catch (error) {
+    console.error('Error fetching preset list:', error);
+    return null;
+  }
+};
+
