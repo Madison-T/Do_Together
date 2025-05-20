@@ -23,6 +23,7 @@ export default function ListDetailsScreen() {
 
     const [newActivity, setNewActivity] = useState('');
     const [isAdding, setIsAdding] = useState(false);
+    const [errorMessage, setErrorMessage] = useState('');
 
     useEffect(() => {
         loadListData();
@@ -36,22 +37,35 @@ export default function ListDetailsScreen() {
 
 
     const handleAddActivity = async () => {
+        setErrorMessage('');
+
         if(!newActivity.trim()){
             Alert.alert('Error', 'Please enter an activity');
             return;
         }
 
         try{
+            const activityText = newActivity.trim();
+            const isDuplicate = currentList.activities?.some(
+                activity => activity.toLowerCase() === activityText.toLowerCase()
+            );
+
+            if(isDuplicate){
+                setErrorMessage('This activity already exists in the list');
+                return;
+            }
+
             setIsAdding(true);
             const result = await addActivity(listId, newActivity.trim());
 
             if(result.success){
                 setNewActivity('');
             }else{
-                Alert.alert('Error', result.error || 'Failed to add activity');
+                setErrorMessage(result.error || 'Failed to add activity');
             }
         }catch(error){
             console.error("Failed to add activity:", error);
+            setErrorMessage('An unexpected error occured');
         }finally{
             setIsAdding(false);
         }
@@ -118,13 +132,23 @@ export default function ListDetailsScreen() {
             <Text style={styles.sectionTitle}>
                 Activities ({currentList.activities?.length || 0})
             </Text>
+
+            {errorMessage ? (
+                <View style={styles.errorContainer}>
+                    <Ionicons name="close-circle" size={24} color="#d32f2f" />
+                    <Text style={styles.errorText}>{errorMessage}</Text>
+                </View>
+            ): null}
             
             {/* Add New Activity Input */}
             <View style={styles.addActivityContainer}>
                 <TextInput
                     style={styles.addActivityInput}
                     value={newActivity}
-                    onChangeText={setNewActivity}
+                    onChangeText={(text) =>{
+                        setNewActivity(text);
+                        setErrorMessage('');
+                    }}
                     placeholder="Add a new activity..."
                     maxLength={100}
                 />
@@ -177,12 +201,6 @@ const styles = StyleSheet.create({
         marginTop: 10,
         fontSize: 16,
         color: '#666',
-    },
-    errorText: {
-        marginTop: 10,
-        fontSize: 18,
-        color: '#f44336',
-        textAlign: 'center',
     },
     backButton: {
         marginTop: 20,
@@ -299,6 +317,22 @@ const styles = StyleSheet.create({
         fontSize: 14,
         color: '#aaa',
         marginTop: 5,
+        textAlign: 'center',
+    },
+    errorContainer:{
+        backgroundColor: 'white',
+        padding: 10,
+        borderRadius: 8,
+        marginBottom: 20,
+        borderWidth: 3,
+        borderColor: '#d32f2f',
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    errorText:{
+        marginLeft: 10,
+        color: 'black',
+        fontSize: 14,
         textAlign: 'center',
     },
 });
