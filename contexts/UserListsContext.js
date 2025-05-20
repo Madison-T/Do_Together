@@ -199,10 +199,32 @@ export const UserListsProvider = ({children}) =>{
         }
     };
 
+    //Check if a list with the same name already exists for the current user
+    const checkListNameExists = async(title) =>{
+        if(!auth.currentUser){
+            return false;
+        }
+
+        const listsRef = collection(firestore, "userLists");
+        const q = query (listsRef,
+            where("userId", "==", auth.currentUser.uid),
+            where("title", "==", title.trim())
+        );
+
+        const querySnapshot = await getDocs(q);
+        return !querySnapshot.empty;
+    }
+
     const createList = async(title, activities) =>{
         try{
             if(!auth.currentUser){
                 throw new Error("You must be logged in to create a list");
+            }
+
+            //Check if list name already exists
+            const listExists = await checkListNameExists(title);
+            if(listExists){
+                return {success: false, error:"A list with this name already exists. Please choose a different name"};
             }
 
             //Filter out empty activities

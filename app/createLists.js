@@ -10,6 +10,7 @@ export default function CreateListScreen() {
     const [title, setTitle] = useState('');
     const [activities, setActivities] = useState(['']);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [errorMessage, setErrorMessage] = useState('');
 
     const handleAddActivity = () => {
         setActivities([...activities, '']);
@@ -30,6 +31,8 @@ export default function CreateListScreen() {
     };
 
     const handleCreateList = async () => {
+        setErrorMessage('');
+
         if (!title.trim()) {
             Alert.alert('Error', 'Please enter a list title');
             return;
@@ -59,11 +62,12 @@ export default function CreateListScreen() {
                 });
             }else{
                 setIsSubmitting(false);
-                Alert.alert('Error', result.error || 'Failed to create lists. Please try again.');
+                setErrorMessage(result.error || 'Failed to create list. Please try again');
             }
         }catch(error){
             console.error("Error in create list flow:", error);
             setIsSubmitting(false);
+            setErrorMessage('An unexpected error occured. Please try again');
         }
 
     };
@@ -72,12 +76,22 @@ export default function CreateListScreen() {
         <ScrollView style={styles.container}>
             <Text style={styles.title}>Create New List</Text>
             
+            {/** Display error message if there is one */}
+            {errorMessage ? (
+                <View style={styles.errorContainer}>
+                    <Text style={styles.errorText}>{errorMessage}</Text>
+                </View>
+            ): null}
+
             <View style={styles.formGroup}>
                 <Text style={styles.label}>List Title</Text>
                 <TextInput
                     style={styles.input}
                     value={title}
-                    onChangeText={setTitle}
+                    onChangeText={(text) =>{
+                        setTitle(text);
+                        setErrorMessage('');
+                    }}
                     placeholder="Enter list title"
                     maxLength={50}
                 />
@@ -235,5 +249,18 @@ const styles = StyleSheet.create({
         color: 'white',
         fontSize: 16,
         fontWeight: '500',
+    },
+    errorContainer:{
+        backgroundColor: 'white',
+        padding: 10,
+        borderRadius: 8,
+        marginBottom: 20,
+        borderWidth: 3,
+        borderColor: '#d32f2f',
+    },
+    errorText:{
+        color: 'black',
+        fontSize: 14,
+        textAlign: 'center',
     },
 });
