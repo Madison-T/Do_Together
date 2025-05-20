@@ -33,7 +33,12 @@ export const UserListsProvider = ({children}) =>{
         try{
             setLoading(true);
 
-            const userId = auth.currentUser.uid;
+            const userId = auth.currentUser?.uid;
+            if(!userId){
+                setUserLists([]);
+                return;
+            }
+            
             const listsRef = collection(firestore, "userLists");
             const q = query (listsRef, where("userId", "==", userId));
 

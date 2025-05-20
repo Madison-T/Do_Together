@@ -1,11 +1,18 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useEffect } from 'react';
 import { Alert, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useUserLists } from '../contexts/UserListsContext';
 
 export default function MyListsScreen() {
     const router = useRouter();
-    const {userLists, loading, deleteList} = useUserLists();
+    const {userLists, loading, deleteList, loadUserLists} = useUserLists();
+
+    useEffect(()=>{
+      loadUserLists();
+
+      console.log("MyListsScreen mounted");
+    }, []);
 
     const handleSelectList = (list) => {
         router.push({
@@ -22,25 +29,13 @@ export default function MyListsScreen() {
     };
 
     const handleDeleteList = async (listId) => {
-        Alert.alert(
-          'Confirm Delete',
-          'Are you sure you want to delete this list?',
-          [
-            { text: 'Cancel', style: 'cancel' },
-            { 
-              text: 'Delete', 
-              style: 'destructive',
-              onPress: async () => {
-                const success = await deleteList(listId);
-                if(success){
-                  Alert.alert('Success', 'List deleted successfully');
-                }else{
-                  Alert.alert("Error", "Failed to delete the list");
-                }
-              }
-            }
-          ]
-        );
+        
+        const success = await deleteList(listId);
+        if(success){
+          Alert.alert('Success', 'List deleted successfully');
+        }else{
+          Alert.alert("Error", "Failed to delete the list");
+        }
     };
 
     const renderListItem = ({ item }) => (

@@ -35,18 +35,35 @@ export default function CreateListScreen() {
             return;
         }
 
+        const hasActivities = activities.some(activity => activity.trim() !== '');
+            if(!hasActivities){
+                Alert.alert("Error", "Please add at least one activity");
+                return;
+            }
+
         try{
-            setIsSubmitting(true);
+            setIsSubmitting(true);            
 
             const result = await createList(title, activities);
 
             if(result.success){
-                router.replace('/MyLists')
+                setTitle('');
+                setActivities([]);
+                setIsSubmitting(false);
+                router.push({
+                    pathname: '/viewLists',
+                    params: {
+                        listId: result.id,
+                        listType: 'user',
+                    }
+                });
             }else{
+                setIsSubmitting(false);
                 Alert.alert('Error', result.error || 'Failed to create lists. Please try again.');
             }
         }catch(error){
             console.error("Error in create list flow:", error);
+            setIsSubmitting(false);
         }
 
     };
