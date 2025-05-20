@@ -79,6 +79,7 @@ export default function CreateListScreen() {
             {/** Display error message if there is one */}
             {errorMessage ? (
                 <View style={styles.errorContainer}>
+                    <Ionicons name="close-circle" size={24} color="#d32f2f" />
                     <Text style={styles.errorText}>{errorMessage}</Text>
                 </View>
             ): null}
@@ -257,8 +258,11 @@ const styles = StyleSheet.create({
         marginBottom: 20,
         borderWidth: 3,
         borderColor: '#d32f2f',
+        flexDirection: 'row',
+        alignItems: 'center',
     },
     errorText:{
+        marginLeft: 10,
         color: 'black',
         fontSize: 14,
         textAlign: 'center',
