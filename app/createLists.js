@@ -1,12 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { addDoc, collection } from 'firebase/firestore';
 import { useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { auth, firestore } from '../firebaseConfig';
+import { useUserLists } from '../contexts/UserListsContext';
 
 export default function CreateListScreen() {
     const router = useRouter();
+    const {createList} = useUserLists();
     const [title, setTitle] = useState('');
     const [activities, setActivities] = useState(['']);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -35,48 +35,20 @@ export default function CreateListScreen() {
             return;
         }
 
-        // Filter out empty activities
-        const filteredActivities = activities.filter(activity => activity.trim() !== '');
-        
-        if (filteredActivities.length === 0) {
-            Alert.alert('Error', 'Please add at least one activity');
-            return;
-        }
-
-        if (!auth.currentUser) {
-            Alert.alert('Error', 'You must be logged in to create a list');
-            return;
-        }
-
-        try {
+        try{
             setIsSubmitting(true);
-            
-            const listData = {
-                title: title.trim(),
-                activities: filteredActivities,
-                userId: auth.currentUser.uid,
-                createdAt: new Date()
-            };
 
-            // Add a new document to the "lists" collection
-            const docRef = await addDoc(collection(firestore, "userLists"), listData);
-            
-            Alert.alert(
-                'Success',
-                'Your list has been created!',
-                [
-                    { 
-                        text: 'OK', 
-                        onPress: () => router.replace('/my-lists')
-                    }
-                ]
-            );
-        } catch (error) {
-            console.error('Error creating list:', error);
-            Alert.alert('Error', 'Failed to create list. Please try again.');
-        } finally {
-            setIsSubmitting(false);
+            const result = await createList(title, activities);
+
+            if(result.success){
+                router.replace('/MyLists')
+            }else{
+                Alert.alert('Error', result.error || 'Failed to create lists. Please try again.');
+            }
+        }catch(error){
+            console.error("Error in create list flow:", error);
         }
+
     };
 
     return (
