@@ -1,9 +1,12 @@
-import { Stack } from "expo-router";
+import { Stack } from 'expo-router';
 import React from 'react';
 import { StyleSheet } from 'react-native';
 import { AuthProvider } from '../contexts/AuthContext';
 import { GroupProvider } from '../contexts/GroupContext';
 import { NotificationProvider } from '../contexts/NotificationContext';
+import { PresetListsProvider } from '../contexts/PresetListsContext'; // ✅ Add this import
+import { VotingSessionProvider } from '../contexts/VotingSessionContext';
+
 
 const LayoutInner = () => {
   return <Stack />;
@@ -13,9 +16,13 @@ const Layout = () => {
   return (
     <AuthProvider>
       <GroupProvider>
-        <NotificationProvider>
-          <LayoutInner />
-        </NotificationProvider>
+        <PresetListsProvider>
+          <VotingSessionProvider> 
+            <NotificationProvider>
+              <LayoutInner />
+            </NotificationProvider>
+          </VotingSessionProvider>
+        </PresetListsProvider>
       </GroupProvider>
     </AuthProvider>
   );
@@ -27,7 +34,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     alignItems: 'flex-end',
     backgroundColor: '#fff',
-    zIndex: 100,  // make sure it's on top
+    zIndex: 100, 
   },
 });
 

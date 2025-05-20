@@ -1,14 +1,24 @@
-import { collection, deleteDoc, doc, getDoc, getDocs, orderBy, query, setDoc, updateDoc, where } from 'firebase/firestore';
+import {
+  collection,
+  deleteDoc,
+  doc,
+  getDoc,
+  getDocs,
+  orderBy,
+  query,
+  setDoc,
+  updateDoc,
+  where,
+} from 'firebase/firestore';
 import { firestore } from '../firebaseConfig';
 
 // ===================== USERS =====================
 
-// Adding User to Firestore
 export const addUser = async (userId, name, email) => {
   try {
     await setDoc(doc(firestore, 'Users', userId), {
-      name: name,
-      email: email,
+      name,
+      email,
       createdAt: new Date().toISOString(),
     });
     console.log(`User added successfully with ID: ${userId}`);
@@ -17,50 +27,38 @@ export const addUser = async (userId, name, email) => {
   }
 };
 
-// Fetching Users from Firestore
 export const fetchUsers = async () => {
   try {
     const snapshot = await getDocs(collection(firestore, 'Users'));
-    const users = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    console.log('Users fetched successfully: ', users);
-    return users;
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
   } catch (error) {
     console.error('Error fetching users: ', error);
   }
 };
 
-// Fetching Single User
 export const fetchUserById = async (userId) => {
   try {
     const userDoc = await getDoc(doc(firestore, 'Users', userId));
-    if (userDoc.exists()) {
-      return userDoc.data();
-    } else {
-      console.log('No such user found.');
-    }
+    return userDoc.exists() ? userDoc.data() : null;
   } catch (error) {
     console.error('Error fetching user: ', error);
   }
 };
 
-// Updating User Data
 export const updateUser = async (userId, updatedData) => {
   try {
     await updateDoc(doc(firestore, 'Users', userId), {
       ...updatedData,
       updatedAt: new Date().toISOString(),
     });
-    console.log(`User with ID: ${userId} updated successfully`);
   } catch (error) {
     console.error('Error updating user: ', error);
   }
 };
 
-// Deleting User
 export const deleteUser = async (userId) => {
   try {
     await deleteDoc(doc(firestore, 'Users', userId));
-    console.log(`User with ID: ${userId} deleted successfully`);
   } catch (error) {
     console.error('Error deleting user: ', error);
   }
@@ -68,7 +66,6 @@ export const deleteUser = async (userId) => {
 
 // ===================== GROUPS =====================
 
-// Adding Group
 export const addGroup = async (groupId, name, description, members, createdBy, joinCode) => {
   try {
     await setDoc(doc(firestore, 'Groups', groupId), {
@@ -78,161 +75,122 @@ export const addGroup = async (groupId, name, description, members, createdBy, j
       createdBy,
       createdAt: new Date().toISOString(),
       joinCode,
-      
     });
-    console.log('Group added successfully');
   } catch (error) {
     console.error('Error adding group: ', error);
   }
 };
 
-// Fetching Groups
 export const fetchGroups = async () => {
   try {
     const snapshot = await getDocs(collection(firestore, 'Groups'));
-    const groups = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    return groups;
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
   } catch (error) {
     console.error('Error fetching groups: ', error);
   }
 };
 
-//Fetch a specific group
-export const fetchGroupById = async (groupId) =>{
-  try{
-    const groupDoc = await getDoc(doc(firestore, 'Groups', groupId));
-    if(groupDoc.exists()){
-      return {id: groupDoc.id, ...groupDoc.data()};
-    }else{
-      console.log("No such group found");
-      return null;
-    }
-  }catch(error){
-    console.error("Error fetch group: ", error);
+export const fetchGroupById = async (groupId) => {
+  try {
+    const docSnap = await getDoc(doc(firestore, 'Groups', groupId));
+    return docSnap.exists() ? { id: docSnap.id, ...docSnap.data() } : null;
+  } catch (error) {
+    console.error('Error fetch group: ', error);
   }
 };
 
-//Fetch groups for a specific user
-export const fetchUserGroups = async (userId) =>{
-  try{
+export const fetchUserGroups = async (userId) => {
+  try {
     const snapshot = await getDocs(collection(firestore, 'Groups'));
-    const groups = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()})).filter(group => group.members && group.members.includes(userId));
-    return groups;
-  }catch(error){
-    console.error("Error fetching user groups: ", error);
+    return snapshot.docs
+      .map(doc => ({ id: doc.id, ...doc.data() }))
+      .filter(group => group.members?.includes(userId));
+  } catch (error) {
+    console.error('Error fetching user groups: ', error);
   }
-}
+};
 
-// Updating Group
 export const updateGroup = async (groupId, updatedData) => {
   try {
     await updateDoc(doc(firestore, 'Groups', groupId), {
       ...updatedData,
       updatedAt: new Date().toISOString(),
     });
-    console.log(`Group with ID: ${groupId} updated successfully`);
   } catch (error) {
     console.error('Error updating group: ', error);
   }
 };
 
-// Deleting Group
 export const deleteGroup = async (groupId) => {
   try {
     await deleteDoc(doc(firestore, 'Groups', groupId));
-    console.log(`Group with ID: ${groupId} deleted successfully`);
   } catch (error) {
     console.error('Error deleting group: ', error);
   }
 };
 
-//Finding a group by groupID code
-export const findGroupByCode = async(code) =>{
-  try{
+export const findGroupByCode = async (code) => {
+  try {
     const snapshot = await getDocs(collection(firestore, 'Groups'));
-    const groups = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()}));
-    const group = groups.find(g=> g.joinCode === code);
-    return group || null;
-  }catch(error){
-    console.error("Error find group by code:", error);
+    const groups = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    return groups.find(g => g.joinCode === code) || null;
+  } catch (error) {
+    console.error('Error find group by code:', error);
   }
 };
 
-export const addMemberToGroup = async(groupId, userId) =>{
-  try{
+export const addMemberToGroup = async (groupId, userId) => {
+  try {
     const groupDoc = await getDoc(doc(firestore, 'Groups', groupId));
-    if(!groupDoc.exists()){
-      throw new Error("Group not found");
-    }
+    if (!groupDoc.exists()) throw new Error('Group not found');
 
-    const groupData = groupDoc.data();
-    const members = groupData.members || [];
-    if(members.includes(userId)){
-      console.log("User is already a member of this group");
-      return;
-    }
+    const members = groupDoc.data().members || [];
+    if (members.includes(userId)) return;
 
     await updateDoc(doc(firestore, 'Groups', groupId), {
       members: [...members, userId],
       updatedAt: new Date().toISOString(),
     });
-
-    console.log(`User ${userId} added to group ${groupId} successfully`);
-  }catch(error){
-    console.log("Error adding member to group", error);
+  } catch (error) {
+    console.error('Error adding member to group', error);
   }
 };
 
-export const removeMemberFromGroup = async(groupId, userId) =>{
-  try{
+export const removeMemberFromGroup = async (groupId, userId) => {
+  try {
     const groupDoc = await getDoc(doc(firestore, 'Groups', groupId));
-    if(!groupDoc.exists()){
-      throw new Error("Group not found");
-    }
+    if (!groupDoc.exists()) throw new Error('Group not found');
 
-    const groupData = groupDoc.data();
-    const members = groupData.members || [];
+    const members = groupDoc.data().members || [];
+    if (!members.includes(userId)) return;
 
-    if(!members.includes(userId)){
-      console.log("User is not a member of this group");
-      return;
-    }
-
-    await updateDoc(doc(firestore, 'Groups', groupId),{
-      members: members.filter(memberId => memberId !== userId),
-      updatedAt: new DataTransfer().toISOString(),
+    await updateDoc(doc(firestore, 'Groups', groupId), {
+      members: members.filter(id => id !== userId),
+      updatedAt: new Date().toISOString(),
     });
-    console.log(`User ${userId} removed from group ${groupId} successfully`);
-  }catch(error){
-    console.error("Error removing member from group", error);
+  } catch (error) {
+    console.error('Error removing member from group', error);
   }
 };
 
-//Adding multiple users to a group
-export const addUsersToGroup = async(groupId, userIds)=>{
-  try{
-    //First get the current group data
-    const groupDoc = await fetchGroupById(groupId);
-    if(!groupDoc){
-      throw new Error("Group not found");
-    }
+export const addUsersToGroup = async (groupId, userIds) => {
+  try {
+    const group = await fetchGroupById(groupId);
+    if (!group) throw new Error('Group not found');
 
-    //Creat a new members array with unique members only
-    const currentMembers = groupDoc.members || [];
-    const newMembers = [...new Set([...currentMembers, ...userIds])];
+    const members = group.members || [];
+    const newMembers = [...new Set([...members, ...userIds])];
 
-    //Update the group document with the new members
-    await updateGroup(groupId, {members: newMembers});
+    await updateGroup(groupId, { members: newMembers });
     return true;
-  }catch(error){
-    console.error("Error adding multiple users to a group", error);
+  } catch (error) {
+    console.error('Error adding multiple users to a group', error);
     throw error;
   }
-}
+};
 
 // ===================== VOTES =====================
 
-// Adding Vote
 export const addVote = async (voteId, groupId, userId, vote) => {
   try {
     await setDoc(doc(firestore, 'Votes', voteId), {
@@ -241,118 +199,41 @@ export const addVote = async (voteId, groupId, userId, vote) => {
       vote,
       createdAt: new Date().toISOString(),
     });
-    console.log('Vote added successfully');
   } catch (error) {
     console.error('Error adding vote: ', error);
   }
 };
 
-// Fetching Votes
 export const fetchVotes = async (groupId) => {
   try {
     const snapshot = await getDocs(collection(firestore, 'Votes'));
-    const votes = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    return votes.filter(vote => vote.groupId === groupId);
+    return snapshot.docs
+      .map(doc => ({ id: doc.id, ...doc.data() }))
+      .filter(vote => vote.groupId === groupId);
   } catch (error) {
     console.error('Error fetching votes: ', error);
   }
 };
 
-// Updating Vote
 export const updateVote = async (voteId, updatedData) => {
   try {
     await updateDoc(doc(firestore, 'Votes', voteId), {
       ...updatedData,
       updatedAt: new Date().toISOString(),
     });
-    console.log(`Vote with ID: ${voteId} updated successfully`);
   } catch (error) {
     console.error('Error updating vote: ', error);
   }
 };
 
-// Deleting Vote
 export const deleteVote = async (voteId) => {
   try {
     await deleteDoc(doc(firestore, 'Votes', voteId));
-    console.log(`Vote with ID: ${voteId} deleted successfully`);
   } catch (error) {
     console.error('Error deleting vote: ', error);
   }
 };
 
-// ===================== ACTIVITIES =====================
-
-// Adding Activity
-export const addActivity = async (activityId, name, groupId, description) => {
-  try {
-    await setDoc(doc(firestore, 'Activities', activityId), {
-      name,
-      groupId,
-      description,
-      createdAt: new Date().toISOString(),
-    });
-    console.log('Activity added successfully');
-  } catch (error) {
-    console.error('Error adding activity: ', error);
-  }
-};
-
-// Fetching Activities
-export const fetchActivities = async (groupId) => {
-  try {
-    const snapshot = await getDocs(collection(firestore, 'Activities'));
-    const activities = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    return activities.filter(activity => activity.groupId === groupId);
-  } catch (error) {
-    console.error('Error fetching activities: ', error);
-  }
-};
-
-// Updating Activity
-export const updateActivity = async (activityId, updatedData) => {
-  try {
-    await updateDoc(doc(firestore, 'Activities', activityId), {
-      ...updatedData,
-      updatedAt: new Date().toISOString(),
-    });
-    console.log(`Activity with ID: ${activityId} updated successfully`);
-  } catch (error) {
-    console.error('Error updating activity: ', error);
-  }
-};
-
-// Deleting Activity
-export const deleteActivity = async (activityId) => {
-  try {
-    await deleteDoc(doc(firestore, 'Activities', activityId));
-    console.log(`Activity with ID: ${activityId} deleted successfully`);
-  } catch (error) {
-    console.error('Error deleting activity: ', error);
-  }
-};
-
-//Fetch activity by group id
-export const fetchActivitiesByGroupId = async(groupId) =>{
-  try{
-    const activitiesRef = collection(firestore, 'Activities');
-    const q = query(
-      activitiesRef,
-      where('groupId', '==', groupId),
-      orderBy('createdAt', 'desc')
-    );
-
-    const snapshot = await getDocs(q);
-    const activities = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()}));
-
-    console.log('Activities for group fetched successfully');
-    return activities;
-  }catch(error){
-    console.error("Error fetching activites by group id", error);
-  }
-}
-
-// Record a vote (yes or no)
 export const voteOnActivity = async (userId, activityId, groupId, voteType) => {
   try {
     await setDoc(doc(firestore, 'Votes', `${userId}_${activityId}`), {
@@ -362,13 +243,11 @@ export const voteOnActivity = async (userId, activityId, groupId, voteType) => {
       vote: voteType,
       createdAt: new Date().toISOString(),
     });
-    console.log(`Vote '${voteType}' recorded for activity ${activityId}`);
   } catch (error) {
     console.error('Error voting on activity:', error);
   }
 };
 
-// Fetch votes for a specific user
 export const fetchUserVotes = async (userId) => {
   try {
     const snapshot = await getDocs(collection(firestore, 'Votes'));
@@ -381,6 +260,67 @@ export const fetchUserVotes = async (userId) => {
   }
 };
 
+// ===================== ACTIVITIES =====================
+
+export const addActivity = async (activityId, name, groupId, description) => {
+  try {
+    await setDoc(doc(firestore, 'Activities', activityId), {
+      name,
+      groupId,
+      description,
+      createdAt: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error('Error adding activity: ', error);
+  }
+};
+
+export const fetchActivities = async (groupId) => {
+  try {
+    const snapshot = await getDocs(collection(firestore, 'Activities'));
+    return snapshot.docs
+      .map(doc => ({ id: doc.id, ...doc.data() }))
+      .filter(activity => activity.groupId === groupId);
+  } catch (error) {
+    console.error('Error fetching activities: ', error);
+  }
+};
+
+export const fetchActivitiesByGroupId = async (groupId) => {
+  try {
+    const q = query(
+      collection(firestore, 'Activities'),
+      where('groupId', '==', groupId),
+      orderBy('createdAt', 'desc')
+    );
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  } catch (error) {
+    console.error('Error fetching activities by group id', error);
+  }
+};
+
+export const updateActivity = async (activityId, updatedData) => {
+  try {
+    await updateDoc(doc(firestore, 'Activities', activityId), {
+      ...updatedData,
+      updatedAt: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error('Error updating activity: ', error);
+  }
+};
+
+export const deleteActivity = async (activityId) => {
+  try {
+    await deleteDoc(doc(firestore, 'Activities', activityId));
+  } catch (error) {
+    console.error('Error deleting activity: ', error);
+  }
+};
+
+// ===================== PRESET LISTS =====================
+
 export const addPresetList = async (listId, title, activities) => {
   try {
     await setDoc(doc(firestore, 'PresetLists', listId), {
@@ -388,13 +328,11 @@ export const addPresetList = async (listId, title, activities) => {
       activities,
       createdAt: new Date().toISOString(),
     });
-    console.log('Preset list added');
   } catch (error) {
     console.error('Error adding preset list:', error);
   }
 };
 
-// Fetch all preset lists
 export const fetchPresetLists = async () => {
   try {
     const snapshot = await getDocs(collection(firestore, 'PresetLists'));
@@ -405,18 +343,52 @@ export const fetchPresetLists = async () => {
   }
 };
 
-// Fetch a single preset list by ID
 export const fetchPresetListById = async (listId) => {
   try {
     const docSnap = await getDoc(doc(firestore, 'PresetLists', listId));
-    if (docSnap.exists()) {
-      return { id: docSnap.id, ...docSnap.data() };
-    } else {
-      return null;
-    }
+    return docSnap.exists() ? { id: docSnap.id, ...docSnap.data() } : null;
   } catch (error) {
     console.error('Error fetching preset list:', error);
     return null;
   }
 };
 
+// ===================== VOTING SESSIONS =====================
+
+export const createVotingSession = async (sessionId, {
+  groupId,
+  createdBy,
+  activities,
+  startTime,
+  endTime,
+}) => {
+  try {
+    await setDoc(doc(firestore, 'VotingSessions', sessionId), {
+      groupId,
+      createdBy,
+      activities,
+      startTime,
+      endTime,
+      createdAt: new Date().toISOString(),
+    });
+    console.log('Voting session created:', sessionId);
+  } catch (error) {
+    console.error('Error creating voting session:', error);
+    throw error;
+  }
+};
+
+export const fetchVotingSessionsByGroup = async (groupId) => {
+  try {
+    const q = query(
+      collection(firestore, 'VotingSessions'),
+      where('groupId', '==', groupId),
+      orderBy('startTime', 'desc')
+    );
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  } catch (error) {
+    console.error('Error fetching voting sessions:', error);
+    return [];
+  }
+};

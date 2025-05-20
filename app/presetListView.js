@@ -1,18 +1,25 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { fetchPresetListById } from '../hooks/useFirestore';
+import {
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { usePresetLists } from '../contexts/PresetListsContext';
 
 export default function PresetListView() {
   const { listId } = useLocalSearchParams();
   const router = useRouter();
+  const { getPresetListById } = usePresetLists();
   const [activities, setActivities] = useState([]);
   const [title, setTitle] = useState('');
 
   useEffect(() => {
     const loadList = async () => {
-      const list = await fetchPresetListById(listId);
+      const list = await getPresetListById(listId);
       if (list) {
         setTitle(list.title);
         setActivities(list.activities);
@@ -20,6 +27,10 @@ export default function PresetListView() {
     };
     loadList();
   }, [listId]);
+
+  const handleCreateSession = () => {
+    router.push({ pathname: '/createVoteSession', params: { listId } });
+  };
 
   return (
     <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -35,11 +46,20 @@ export default function PresetListView() {
         <View style={styles.card}>
           {activities.map((item, index) => (
             <View key={index} style={styles.listItem}>
-              <Ionicons name="checkmark-circle-outline" size={18} color="#4caf50" style={styles.bulletIcon} />
+              <Ionicons
+                name="checkmark-circle-outline"
+                size={18}
+                color="#4caf50"
+                style={styles.bulletIcon}
+              />
               <Text style={styles.itemText}>{item}</Text>
             </View>
           ))}
         </View>
+
+        <TouchableOpacity style={styles.createSessionButton} onPress={handleCreateSession}>
+          <Text style={styles.createSessionText}>Start Voting Session</Text>
+        </TouchableOpacity>
       </View>
     </ScrollView>
   );
@@ -101,5 +121,17 @@ const styles = StyleSheet.create({
     color: '#333',
     flexShrink: 1,
     flex: 1,
+  },
+  createSessionButton: {
+    marginTop: 30,
+    backgroundColor: '#3f51b5',
+    padding: 14,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  createSessionText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });

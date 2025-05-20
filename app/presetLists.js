@@ -1,29 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
-import {
-  ActivityIndicator,
-  FlatList,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
-import { fetchPresetLists } from '../hooks/useFirestore';
+import { ActivityIndicator, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { usePresetLists } from '../contexts/PresetListsContext';
 
 export default function PresetLists() {
   const router = useRouter();
-  const [lists, setLists] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const loadLists = async () => {
-      const fetched = await fetchPresetLists();
-      setLists(fetched);
-      setLoading(false);
-    };
-    loadLists();
-  }, []);
+  const { presetLists, loading } = usePresetLists();
 
   const handleSelect = (list) => {
     router.push({ pathname: '/presetListView', params: { listId: list.id } });
@@ -47,7 +29,7 @@ export default function PresetLists() {
       <Text style={styles.title}>Pre-set Lists</Text>
 
       <FlatList
-        data={lists}
+        data={presetLists}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContainer}
         renderItem={({ item }) => (
@@ -61,6 +43,7 @@ export default function PresetLists() {
     </View>
   );
 }
+
 
 const styles = StyleSheet.create({
   container: {

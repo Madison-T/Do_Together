@@ -1,123 +1,129 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useEffect, useState } from 'react';
-import { Animated, Dimensions, PanResponder, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import {
+  Animated,
+  Dimensions,
+  KeyboardAvoidingView,
+  PanResponder,
+  Platform,
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import ModalSelector from 'react-native-modal-selector';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useGroupContext } from '../../../contexts/GroupContext';
 import { useVotesContext } from '../../../contexts/VotesContext';
-import { fetchActivities } from '../../../hooks/useFirestore';
+import { fetchVotingSessionsByGroup } from '../../../hooks/useFirestore';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const SWIPE_THRESHOLD = SCREEN_WIDTH * 0.25;
-
-const dummyData = [
-  { id: '1', name: 'Bowling Night', description: 'Compete for strikes and laughs' },
-  { id: '2', name: 'Picnic at the Park', description: 'Enjoy nature and snacks together' },
-  { id: '3', name: 'Escape Room', description: 'Solve puzzles as a team under pressure' },
-  { id: '4', name: 'Karaoke Night', description: 'Sing your heart out with friends' },
-  { id: '5', name: 'Mini Golf', description: 'Challenge your group to a fun putting game' },
-];
 
 export default function SwipeScreen() {
   const { user } = useAuth();
   const { groups } = useGroupContext();
   const { votes, castVote } = useVotesContext();
-  const currentGroup = groups?.[0];
 
-  const [activities, setActivities] = useState([]);
+  const [selectedGroupId, setSelectedGroupId] = useState(null);
+  const [votingSessions, setVotingSessions] = useState([]);
+  const [selectedSessionId, setSelectedSessionId] = useState(null);
+  const [sessionActivities, setSessionActivities] = useState([]);
+
   const position = new Animated.ValueXY();
   const rotate = position.x.interpolate({
     inputRange: [-SCREEN_WIDTH * 1.5, 0, SCREEN_WIDTH * 1.5],
     outputRange: ['-30deg', '0deg', '30deg'],
-    extrapolate: 'clamp'
+    extrapolate: 'clamp',
   });
 
   const panResponder = PanResponder.create({
     onStartShouldSetPanResponder: () => true,
-    onPanResponderMove: (evt, gesture) =>{
-      position.setValue({x: gesture.dx, y: gesture.dy});
+    onMoveShouldSetPanResponder: (_, gesture) => Math.abs(gesture.dx) > 10,
+    onPanResponderMove: (_, gesture) => {
+      position.setValue({ x: gesture.dx, y: gesture.dy });
     },
-    onPanResponderRelease: (evt, gesture) =>{
-      if(gesture.dx > SWIPE_THRESHOLD){
+    onPanResponderRelease: (_, gesture) => {
+      if (gesture.dx > SWIPE_THRESHOLD) {
         swipeRight();
-      }else if(gesture.dx < -SWIPE_THRESHOLD){
+      } else if (gesture.dx < -SWIPE_THRESHOLD) {
         swipeLeft();
-      }else{
+      } else {
         resetPosition();
       }
-    }
+    },
   });
 
+  useEffect(() => {
+    if (groups.length > 0) {
+      setSelectedGroupId(groups[0].id);
+    }
+  }, [groups]);
 
   useEffect(() => {
-    const load = async () => {
-      if (!user || !currentGroup) return;
-
-      let all = await fetchActivities(currentGroup.id);
-
-      // fallback to dummy data if no activities loaded
-      if (!all || all.length === 0) {
-        all = dummyData;
+    const loadSessions = async () => {
+      if (!user || !selectedGroupId) return;
+      const sessions = await fetchVotingSessionsByGroup(selectedGroupId);
+      setVotingSessions(sessions);
+      if (sessions.length > 0) {
+        setSelectedSessionId(sessions[0].id);
+      } else {
+        setSelectedSessionId(null);
       }
-
-      const votedIds = votes.map(v => v.activityId);
-      const visible = all.filter(activity => !votedIds.includes(activity.id));
-      setActivities(visible);
     };
+    loadSessions();
+  }, [selectedGroupId]);
 
-    load();
-  }, [user, currentGroup, votes]);
+  useEffect(() => {
+    if (!selectedSessionId) return;
+    const session = votingSessions.find((s) => s.id === selectedSessionId);
+    if (!session) return;
 
+    const votedIds = votes.map((v) => v.activityId);
+    const activityObjs = session.activities.map((title, index) => ({
+      id: `${selectedSessionId}_${index}`,
+      name: title,
+      description: '',
+    }));
+    const visible = activityObjs.filter((a) => !votedIds.includes(a.id));
+    setSessionActivities(visible);
+  }, [selectedSessionId, votes, votingSessions]);
 
-  const resetPosition = () =>{
+  const resetPosition = () => {
     Animated.spring(position, {
-      toValue: {x:0, y:0},
-      useNativeDriver: false
+      toValue: { x: 0, y: 0 },
+      useNativeDriver: false,
     }).start();
   };
 
-  const swipeLeft = () =>{
+  const swipeLeft = () => {
     Animated.timing(position, {
-      toValue: {x: -SCREEN_WIDTH * 1.5, y: 0},
+      toValue: { x: -SCREEN_WIDTH * 1.5, y: 0 },
       duration: 250,
-      useNativeDriver: false
-    }).start(() =>onSwipeComplete('no'));
+      useNativeDriver: false,
+    }).start(() => onSwipeComplete('no'));
   };
 
-  const swipeRight = () =>{
-    Animated.timing(position,{
-      toValue: {x: SCREEN_WIDTH * 1.5, y:0},
+  const swipeRight = () => {
+    Animated.timing(position, {
+      toValue: { x: SCREEN_WIDTH * 1.5, y: 0 },
       duration: 250,
-      useNativeDriver: false
-    }).start(()=>onSwipeComplete('yes'));
+      useNativeDriver: false,
+    }).start(() => onSwipeComplete('yes'));
   };
 
-  const onSwipeComplete = (vote) =>{
-    //Reset the position and move to next card
-    const currentActivityId = activities[0]?.id;
-    if(currentActivityId){
+  const onSwipeComplete = (vote) => {
+    const currentActivityId = sessionActivities[0]?.id;
+    if (currentActivityId) {
       castVote(currentActivityId, vote);
     }
-
-    //Remove the top card
-    setActivities(prev => prev.slice(1));
-
-    //Reset position for the next card
-    position.setValue({x:0, y:0});
+    setSessionActivities((prev) => prev.slice(1));
+    position.setValue({ x: 0, y: 0 });
   };
 
-  const handleVoteButtonPress = (vote) =>{
-    if(activities.length === 0){
-      return;
-    }
-    if(vote === 'yes'){
-      swipeRight();
-    }else{
-      swipeLeft();
-    }
-  };
-  
-  const renderCard = () =>{
-    if(activities.length === 0){
+  const renderCard = () => {
+    if (sessionActivities.length === 0) {
       return (
         <View style={styles.noMoreCards}>
           <Text style={styles.noMoreCardsText}>No more activities</Text>
@@ -125,7 +131,7 @@ export default function SwipeScreen() {
       );
     }
 
-    const currentActivity = activities[0];
+    const currentActivity = sessionActivities[0];
 
     return (
       <Animated.View
@@ -134,189 +140,164 @@ export default function SwipeScreen() {
           styles.card,
           {
             transform: [
-              {translateX: position.x},
-              {rotate: rotate}
-            ]
-          }
+              { translateX: position.x },
+              { rotate: rotate },
+            ],
+          },
         ]}
       >
         <Text style={styles.name}>{currentActivity.name}</Text>
         <Text style={styles.description}>{currentActivity.description}</Text>
-
-        <Animated.View style={[
-          styles.overlayLeft,
-          {
-            opacity: position.x.interpolate({
-              inputRange: [-SCREEN_WIDTH / 2, 0],
-              outputRange: [1,0],
-              extrapolate: 'clamp'
-            })
-          }
-        ]}>
-          <Text style={styles.overlayText}>NOPE</Text>
-        </Animated.View>
-
-        <Animated.View style={[
-          styles.overlayRight,
-          {
-            opacity: position.x.interpolate({
-              inputRange: [0, SCREEN_WIDTH / 2],
-              outputRange: [0,1],
-              extrapolate: 'clamp'
-            })
-          }
-        ]}>
-          <Text style={styles.overlayText}>LIKE</Text>
-        </Animated.View>
       </Animated.View>
     );
   };
 
-  const renderNextCard = () =>{
-    if(activities.length <= 1){
-      return null;
-    }
-
-    return (
-      <View style={[styles.card, styles.nextCard]}>
-        <Text style={styles.name}>{activities[1].name}</Text>
-        <Text style={styles.description}>{activities[1].description}</Text>
-      </View>
-    );
-  };
-
   return (
-    <View style={styles.container}>
-      <View style={styles.cardContainer}>
-        {activities.length > 1 && renderNextCard()}
-        {renderCard()}
-      </View>
-      <View style={styles.buttons}>
-        <TouchableOpacity
-          style={[styles.button, styles.noButton]}
-          onPress={()=>handleVoteButtonPress('no')}
-          disabled={activities.length === 0}
-        >
-          <Ionicons name="close" size={36} color="white" />
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.button, styles.yesButton]}
-          onPress={()=> handleVoteButtonPress('yes')}
-          disabled={activities.length === 0}
-        >
-          <Ionicons name='heart' size={36} color="white" />
-        </TouchableOpacity>
-      </View>
-    </View>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      style={styles.wrapper}
+    >
+      <SafeAreaView style={styles.container}>
+        <View style={styles.dropdownContainer}>
+          <Text style={styles.label}>Select Group</Text>
+          <ModalSelector
+            data={groups.map((g) => ({ label: g.name, key: g.id }))}
+            initValue="-- Select Group --"
+            onChange={(option) => setSelectedGroupId(option.key)}
+            selectedKey={selectedGroupId}
+            style={styles.modalSelector}
+          />
+          <Text style={styles.label}>Select Voting Session</Text>
+          <ModalSelector
+            data={votingSessions.map((s) => ({
+              label: new Date(s.startTime).toLocaleString(),
+              key: s.id,
+            }))}
+            initValue="-- Select Session --"
+            onChange={(option) => setSelectedSessionId(option.key)}
+            selectedKey={selectedSessionId}
+            style={styles.modalSelector}
+          />
+        </View>
+
+        <View style={styles.cardContainer}>
+          {renderCard()}
+        </View>
+
+        <View style={styles.buttons}>
+          <TouchableOpacity
+            style={[styles.button, styles.noButton]}
+            onPress={() => onSwipeComplete('no')}
+            disabled={sessionActivities.length === 0}
+          >
+            <Ionicons name="close" size={30} color="white" />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.button, styles.yesButton]}
+            onPress={() => onSwipeComplete('yes')}
+            disabled={sessionActivities.length === 0}
+          >
+            <Ionicons name="heart" size={30} color="white" />
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container:{
+  wrapper: {
     flex: 1,
     backgroundColor: '#f8f8f8',
   },
-  cardContainer:{
+  container: {
     flex: 1,
+    paddingTop: 10,
+    justifyContent: 'space-between',
+  },
+  dropdownContainer: {
+    paddingTop: 8,
+    paddingBottom: 30,
+    paddingHorizontal: 20,
+    zIndex: 10,
+  },
+  label: {
+    fontWeight: '600',
+    fontSize: 13,
+    marginBottom: 3,
+    marginTop: 6,
+  },
+  modalSelector: {
+    marginBottom: 8,
+  },
+  cardContainer: {
+    flex: 1,
+    justifyContent: 'flex-start',
     alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 20,
+    paddingHorizontal: 10,
   },
   card: {
-    position: 'absolute',
     width: SCREEN_WIDTH * 0.9,
-    height: '70%',
+    height: '55%',
+    backgroundColor: '#fff',
+    borderRadius: 16,
     padding: 20,
-    borderRadius: 20,
-    backgroundColor: 'white',
     justifyContent: 'center',
+    alignItems: 'center',
     shadowColor: '#000',
-    shadowOffset: {width: 0, height: 2},
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 5,
-    elevation: 2,
-  },
-  nextCard:{
-    top: 10,
-    left: 5,
-    transform: [{scale: 0.95}],
-    opacity: 0.6,
+    elevation: 3,
   },
   name: {
-    fontSize: 28,
+    fontSize: 22,
     fontWeight: 'bold',
-    marginBottom: 12,
+    marginBottom: 8,
     textAlign: 'center',
   },
-  description:{
-    fontSize: 18,
+  description: {
+    fontSize: 15,
+    color: '#555',
     textAlign: 'center',
-    color: '#444',
   },
   buttons: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    marginTop: 0,
-    marginBottom: 110,
-    paddingHorizontal: 60,
-  },
-  button:{
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: {width: 0, height: 2},
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
-    elevation: 2,
+    marginTop: 20,
+    marginBottom: 20,
+    position: 'absolute',
+    bottom: 120,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 50,
   },
-  noButton:{
-    backgroundColor: 'red',
+  button: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  yesButton:{
-    backgroundColor: 'green',
+  noButton: {
+    backgroundColor: '#f44336',
   },
-  noMoreCards:{
+  yesButton: {
+    backgroundColor: '#4caf50',
+  },
+  noMoreCards: {
     width: SCREEN_WIDTH * 0.9,
-    height: '70%',
-    justifyContent: 'center',
+    height: '55%',
+    justifyContent: 'flex-start',
     alignItems: 'center',
-    backgroundColor: '#f8f8f8',
-    borderRadius: 20,
+    backgroundColor: '#fafafa',
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#ddd',
-    borderStyle: 'dashed',
+    borderColor: '#ccc',
   },
-  noMoreCardsText:{
-    fontSize: 20,
-    color: '#888',
-    fontWeight: 'bold',
+  noMoreCardsText: {
+    fontSize: 17,
+    color: '#999',
   },
-  overlayLeft:{
-    position: 'absolute',
-    top: 25,
-    left: 25,
-    borderWidth: 3,
-    borderRadius: 8,
-    padding: 10,
-    borderColor: 'red',
-    transform: [{rotate: '-20deg'}],
-  },
-  overlayRight:{
-    position: 'absolute',
-    top: 25,
-    right: 25,
-    borderWidth: 3,
-    borderColor: 'green',
-    borderRadius: 8,
-    padding: 10,
-    transform: [{rotate: '20deg'}],
-  },
-  overlayText:{
-    fontSize: 24,
-    fontWeight: 'bold',
-    textAlign: 'center',
-  }
 });
