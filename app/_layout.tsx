@@ -4,6 +4,7 @@ import { StyleSheet } from 'react-native';
 import { AuthProvider } from '../contexts/AuthContext';
 import { GroupProvider } from '../contexts/GroupContext';
 import { NotificationProvider } from '../contexts/NotificationContext';
+import { UserListsProvider } from '../contexts/UserListsContext';
 
 const LayoutInner = () => {
   return <Stack />;
@@ -14,7 +15,9 @@ const Layout = () => {
     <AuthProvider>
       <GroupProvider>
         <NotificationProvider>
-          <LayoutInner />
+          <UserListsProvider>
+            <LayoutInner />
+          </UserListsProvider>  
         </NotificationProvider>
       </GroupProvider>
     </AuthProvider>

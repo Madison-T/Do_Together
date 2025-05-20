@@ -1,53 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { collection, deleteDoc, doc, getDocs, query, where } from 'firebase/firestore';
-import { useEffect, useState } from 'react';
 import { Alert, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { auth, firestore } from '../firebaseConfig'; // Assuming you have a firebaseConfig file
-
+import { useUserLists } from '../contexts/UserListsContext';
 
 export default function MyListsScreen() {
     const router = useRouter();
-    const [userLists, setUserLists] = useState([]);
-    const [loading, setLoading] = useState(true);
-    
-    useEffect(() => {
-      // Load lists when component mounts or when auth state changes
-      if (auth.currentUser) {
-        loadUserLists();
-      } else {
-        // Handle not logged in state
-        setUserLists([]);
-        setLoading(false);
-      }
-    }, [auth.currentUser]);
-    
-    const loadUserLists = async () => {
-      try {
-        setLoading(true);
-        
-        const userId = auth.currentUser.uid;
-        const listsRef = collection(firestore, "userLists");
-        const q = query(listsRef, where("userId", "==", userId));
-        
-        const querySnapshot = await getDocs(q);
-        const lists = [];
-        
-        querySnapshot.forEach((doc) => {
-          lists.push({
-            id: doc.id,
-            ...doc.data()
-          });
-        });
-        
-        setUserLists(lists);
-      } catch (error) {
-        console.error('Failed to load user lists:', error);
-        Alert.alert('Error', 'Failed to load your lists. Please try again.');
-      } finally {
-        setLoading(false);
-      }
-    };
+    const {userLists, loading, deleteList} = useUserLists();
 
     const handleSelectList = (list) => {
         router.push({
@@ -73,19 +31,11 @@ export default function MyListsScreen() {
               text: 'Delete', 
               style: 'destructive',
               onPress: async () => {
-                try {
-                  // Delete document from Firestore
-                  const listRef = doc(firestore, "userLists", listId);
-                  await deleteDoc(listRef);
-                  
-                  // Update local state
-                  const updatedLists = userLists.filter(list => list.id !== listId);
-                  setUserLists(updatedLists);
-                  
+                const success = await deleteList(listId);
+                if(success){
                   Alert.alert('Success', 'List deleted successfully');
-                } catch (error) {
-                  console.error('Failed to delete list:', error);
-                  Alert.alert('Error', 'Failed to delete the list.');
+                }else{
+                  Alert.alert("Error", "Failed to delete the list");
                 }
               }
             }
@@ -135,7 +85,7 @@ export default function MyListsScreen() {
           ) : (
             <View style={styles.emptyContainer}>
               <Ionicons name="list" size={60} color="#ccc" />
-              <Text style={styles.emptyText}>You haven't created any lists yet</Text>
+              <Text style={styles.emptyText}>You havent created any lists yet</Text>
               <Text style={styles.emptySubtext}>
                 Create your first list to get started!
               </Text>
