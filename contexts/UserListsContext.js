@@ -1,4 +1,4 @@
-import { addDoc, collection, deleteDoc, doc, getDocs, query, where } from 'firebase/firestore';
+import { addDoc, arrayRemove, arrayUnion, collection, deleteDoc, doc, getDoc, getDocs, query, updateDoc, where } from 'firebase/firestore';
 import { createContext, useContext, useEffect, useState } from 'react';
 import { auth, firestore } from '../firebaseConfig';
 
@@ -18,15 +18,21 @@ export const useUserLists = () =>{
 export const UserListsProvider = ({children}) =>{
     const [userLists, setUserLists] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [currentList, setCurrentList] = useState(null);
+    const [listLoading, setListLoading] = useState(false);
+    const [listError, setListError] = useState(null);
 
     //Load lists when component mounts or when auth state changes
     useEffect(()=>{
-        if(auth.currentUser){
-            loadUserLists();
-        }else{
-            setUserLists([]);
-            setLoading(false);
-        }
+        const loadInitialData = async() =>{
+            if(auth.currentUser){
+                loadUserLists();
+            }else{
+                setUserLists([]);
+                setLoading(false);
+            }
+        };
+        loadInitialData();
     }, [auth.currentUser]);
 
     const loadUserLists = async () =>{
@@ -38,7 +44,7 @@ export const UserListsProvider = ({children}) =>{
                 setUserLists([]);
                 return;
             }
-            
+
             const listsRef = collection(firestore, "userLists");
             const q = query (listsRef, where("userId", "==", userId));
 
@@ -57,6 +63,122 @@ export const UserListsProvider = ({children}) =>{
             console.error("Failed to load user lists:", error);
         }finally{
             setLoading(false);
+        }
+    };
+
+    const loadListDetails = async (listId) =>{
+        if(!listId){
+            setListError("No list ID provided");
+            setListLoading(false);
+            return {success: false, error: "No list ID provided"};
+        }
+
+        try{
+            setListError(null);
+            setListLoading(true);
+            console.log("Fetching list with ID", listId);
+
+            const listRef = doc(firestore, 'userLists', listId);
+            const listSnap = await getDoc(listRef);
+
+            if(listSnap.exists()){
+                console.log("List data found:", listSnap.data());
+                const listData = {
+                    id: listSnap.id,
+                    ...listSnap.data()
+                };
+
+                setCurrentList(listData);
+                return {success: true, list: listData};
+            }else{
+                console.log("List not found");
+                setListError("List not found");
+                setCurrentList(null);
+                return {success: false, error: "List not found"};
+            }
+        }catch (error){
+            console.error("Error loading list details", error);
+            setListError('Failed to load list details');
+            setCurrentList(null);
+            return {success: false, error: 'Failed to load list details'};
+        }finally{
+            setListLoading(false);
+        }
+    };
+
+    const addActivity = async (listId, activityText) =>{
+        if(!activityText.trim()){
+            return {success: false, error: 'Please enter an activity'};
+        }
+
+        try{
+            const listRef = doc(firestore, 'userLists', listId);
+
+            //add activity to firestore
+            await updateDoc(listRef, {
+                activities: arrayUnion(activityText.trim())
+            });
+
+            //update both current list and lists array
+            setCurrentList(prev=>({
+                ...prev,
+                activities: [...(prev.activities || []), activityText.trim()]
+            }));
+
+            //update the item in the user lists array too
+            setUserLists(prevLists =>{
+                return prevLists.map(list=>{
+                    if(list.id === listId){
+                        return{
+                            ...list,
+                            activities: [...(list.activities || []), activityText.trim()]
+                        };
+                    }
+                    return list;
+                });
+            });
+
+            console.log("Activty added successfully");
+            return {success: true};
+        }catch(error){
+            console.error("Failed to add activity", error);
+            return {success: false, error: 'Failed to add activity'};
+        }
+    };
+
+    const removeActivity = async (listId, activityToRemove) =>{
+        try{
+            const listRef = doc(firestore, 'userLists', listId);
+
+            //Remove activity from firestore array
+            await updateDoc(listRef, {
+                activities: arrayRemove(activityToRemove)
+            });
+
+            //Update current list state
+            setCurrentList(prev =>({
+                ...prev,
+                activities: prev.activities.filter(activity => activity !== activityToRemove)
+            }));
+
+            //Update the item in the user lists array too
+            setUserLists(prevLists =>{
+                return prevLists.map(list =>{
+                    if(list.id === listId){
+                        return{
+                            ...list,
+                            activities: list.activities.filter(activity => activity !== activityToRemove)
+                        };
+                    }
+                    return list;
+                });
+            });
+
+            console.log("Activity removed successfully");
+            return {success: true};
+        }catch(error){
+            console.error("Failed to remove activity", error);
+            return {success: false, error: "Failed to remove activity"};
         }
     };
 
@@ -118,7 +240,13 @@ export const UserListsProvider = ({children}) =>{
         loading,
         loadUserLists,
         deleteList,
-        createList
+        createList,
+        currentList,
+        listLoading,
+        listError,
+        loadListDetails,
+        addActivity,
+        removeActivity
     };
 
     return (

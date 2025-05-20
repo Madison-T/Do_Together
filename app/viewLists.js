@@ -1,6 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { arrayRemove, arrayUnion, doc, getDoc, updateDoc } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import {
     ActivityIndicator,
@@ -14,129 +13,58 @@ import {
     TouchableOpacity,
     View
 } from 'react-native';
-import { firestore } from '../firebaseConfig';
+import { useUserLists } from '../contexts/UserListsContext';
 
 export default function ListDetailsScreen() {
     const router = useRouter();
     const { listId, listType } = useLocalSearchParams();
     
-    const [list, setList] = useState(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
+    const {currentList, listLoading, listError, loadListDetails, addActivity, removeActivity} = useUserLists();
+
     const [newActivity, setNewActivity] = useState('');
     const [isAdding, setIsAdding] = useState(false);
 
     useEffect(() => {
-        loadListDetails();
+        loadListData();
     }, [listId]);
 
-    const loadListDetails = async () => {
-        if (!listId) {
-            setError('No list ID provided');
-            setLoading(false);
-            return;
-        }
-
-        try {
-            setLoading(true);
-            console.log("Fetching list with ID:", listId);
-            const listRef = doc(firestore, 'userLists', listId);
-            const listSnap = await getDoc(listRef);
-            
-            if (listSnap.exists()) {
-                console.log("List data found:", listSnap.data());
-                setList({
-                    id: listSnap.id,
-                    ...listSnap.data()
-                });
-            } else {
-                console.log("List not found");
-                setError('List not found');
-            }
-        } catch (err) {
-            console.error('Error loading list details:', err);
-            setError('Failed to load list details');
-        } finally {
-            setLoading(false);
+    const loadListData = async () => {
+        if(listId){
+            await loadListDetails(listId);
         }
     };
 
-    const handleEditList = () => {
-        router.push({
-            pathname: '/edit-list',
-            params: { listId }
-        });
-    };
 
     const handleAddActivity = async () => {
-        if (!newActivity.trim()) {
+        if(!newActivity.trim()){
             Alert.alert('Error', 'Please enter an activity');
             return;
         }
-        
-        try {
+
+        try{
             setIsAdding(true);
-            const listRef = doc(firestore, 'userLists', listId);
-            
-            // Add activity to Firestore array
-            await updateDoc(listRef, {
-                activities: arrayUnion(newActivity.trim())
-            });
-            
-            // Update local state
-            setList(prev => ({
-                ...prev,
-                activities: [...(prev.activities || []), newActivity.trim()]
-            }));
-            
-            // Clear input field
-            setNewActivity('');
-            
-            console.log("Activity added successfully");
-        } catch (error) {
-            console.error('Failed to add activity:', error);
-            Alert.alert('Error', 'Failed to add activity');
-        } finally {
+            const result = await addActivity(listId, newActivity.trim());
+
+            if(result.success){
+                setNewActivity('');
+            }else{
+                Alert.alert('Error', result.error || 'Failed to add activity');
+            }
+        }catch(error){
+            console.error("Failed to add activity:", error);
+        }finally{
             setIsAdding(false);
         }
     };
 
     const handleRemoveActivity = async (activityToRemove) => {
-        Alert.alert(
-            'Confirm Remove',
-            'Are you sure you want to remove this activity?',
-            [
-                { text: 'Cancel', style: 'cancel' },
-                { 
-                    text: 'Remove', 
-                    style: 'destructive',
-                    onPress: async () => {
-                        try {
-                            const listRef = doc(firestore, 'userLists', listId);
-                            
-                            // Remove activity from Firestore array
-                            await updateDoc(listRef, {
-                                activities: arrayRemove(activityToRemove)
-                            });
-                            
-                            // Update local state
-                            setList(prev => ({
-                                ...prev,
-                                activities: prev.activities.filter(activity => activity !== activityToRemove)
-                            }));
-                            
-                            console.log("Activity removed successfully");
-                        } catch (error) {
-                            console.error('Failed to remove activity:', error);
-                            Alert.alert('Error', 'Failed to remove activity');
-                        }
-                    }
-                }
-            ]
-        );
+        const result = await removeActivity(listId, activityToRemove);
+        if(!result.success){
+            Alert.alert('Error', result.error || 'Failed to remove activity');
+        }
     };
 
-    const renderActivity = ({ item, index }) => (
+    const renderActivity = ({ item }) => (
         <View style={styles.activityItem}>
             <Text style={styles.activityText}>{item}</Text>
             
@@ -149,7 +77,7 @@ export default function ListDetailsScreen() {
         </View>
     );
 
-    if (loading) {
+    if (listLoading) {
         return (
             <View style={styles.centeredContainer}>
                 <ActivityIndicator size="large" color="#3f51b5" />
@@ -158,11 +86,11 @@ export default function ListDetailsScreen() {
         );
     }
 
-    if (error) {
+    if (listError) {
         return (
             <View style={styles.centeredContainer}>
                 <Ionicons name="alert-circle" size={60} color="#f44336" />
-                <Text style={styles.errorText}>{error}</Text>
+                <Text style={styles.errorText}>{listError}</Text>
                 <TouchableOpacity 
                     style={styles.backButton}
                     onPress={() => router.back()}
@@ -173,7 +101,7 @@ export default function ListDetailsScreen() {
         );
     }
 
-    if (!list) {
+    if (!currentList) {
         return null;
     }
 
@@ -184,19 +112,11 @@ export default function ListDetailsScreen() {
             keyboardVerticalOffset={100}
         >
             <View style={styles.header}>
-                <Text style={styles.title}>{list.title}</Text>
-                
-                <TouchableOpacity
-                    style={styles.editButton}
-                    onPress={handleEditList}
-                >
-                    <Ionicons name="pencil" size={20} color="#fff" />
-                    <Text style={styles.editButtonText}>Edit List</Text>
-                </TouchableOpacity>
+                <Text style={styles.title}>{currentList.title}</Text>
             </View>
             
             <Text style={styles.sectionTitle}>
-                Activities ({list.activities?.length || 0})
+                Activities ({currentList.activities?.length || 0})
             </Text>
             
             {/* Add New Activity Input */}
@@ -221,9 +141,9 @@ export default function ListDetailsScreen() {
                 </TouchableOpacity>
             </View>
             
-            {list.activities?.length > 0 ? (
+            {currentList.activities?.length > 0 ? (
                 <FlatList
-                    data={list.activities}
+                    data={currentList.activities}
                     keyExtractor={(item, index) => index.toString()}
                     renderItem={renderActivity}
                     contentContainerStyle={styles.activitiesList}
