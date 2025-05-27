@@ -60,6 +60,15 @@ export default function Dashboard() {
             <Text style={styles.actionDescription}>Choose from ready-made activity ideas</Text>
             <Ionicons name="chevron-forward" size={22} color="#777" />
           </TouchableOpacity>
+
+          <TouchableOpacity style={styles.actionButton} onPress={() => router.push('/myLists')}>
+            <View style={[styles.actionIcon, { backgroundColor: '#2196F3' }]}>
+              <Ionicons name="create" size={30} color="#fff" />
+            </View>
+          <Text style={styles.actionText}>My Lists</Text>
+          <Text style={styles.actionDescription}>Create and manage your own activity lists</Text>
+          <Ionicons name="chevron-forward" size={22} color="#777" />
+          </TouchableOpacity>
         </View>
 
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>

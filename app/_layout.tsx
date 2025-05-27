@@ -7,6 +7,7 @@ import { NotificationProvider } from '../contexts/NotificationContext';
 import { PresetListsProvider } from '../contexts/PresetListsContext'; // ✅ Add this import
 import { VotingSessionProvider } from '../contexts/VotingSessionContext';
 
+import { UserListsProvider } from '../contexts/UserListsContext';
 
 const LayoutInner = () => {
   return <Stack />;
@@ -15,16 +16,21 @@ const LayoutInner = () => {
 const Layout = () => {
   return (
     <AuthProvider>
-      <GroupProvider>
-        <PresetListsProvider>
-          <VotingSessionProvider> 
-            <NotificationProvider>
-              <LayoutInner />
-            </NotificationProvider>
-          </VotingSessionProvider>
-        </PresetListsProvider>
-      </GroupProvider>
-    </AuthProvider>
+  <GroupProvider>
+    <PresetListsProvider>
+      {/* put your notification context *around* anything that might need to send notifications */}
+      <NotificationProvider>
+        {/* now both VotingSession and UserLists can call `useNotifications()` */}
+        <VotingSessionProvider>
+          <UserListsProvider>
+            <LayoutInner />
+          </UserListsProvider>
+        </VotingSessionProvider>
+      </NotificationProvider>
+    </PresetListsProvider>
+  </GroupProvider>
+</AuthProvider>
+
   );
 };
 

@@ -1,6 +1,7 @@
 import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
-import { ActivityIndicator, Button, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useState } from 'react';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import AppButton from '../components/ui/AppButton';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function SignUp() {
@@ -82,7 +83,7 @@ export default function SignUp() {
         {localError ? <Text style={styles.error}>{localError}</Text> : null}
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
-        <Button title="Sign Up" onPress={handleSignUp} />
+        <AppButton title="Sign Up" onPress={handleSignUp} />
       </View>
     </ScrollView>
   );

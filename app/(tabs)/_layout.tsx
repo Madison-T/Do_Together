@@ -1,3 +1,6 @@
+
+// app/(tabs)/_layout.tsx
+
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs, useRouter } from 'expo-router';
 import type { JSX } from 'react';
@@ -6,6 +9,7 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { useAuth } from '../../contexts/AuthContext';
 import { GroupProvider } from '../../contexts/GroupContext';
 import { VotesProvider } from '../../contexts/VotesContext';
+import { theme } from '../theme'; // ← adjust this path if your theme.js lives elsewhere
 
 export default function TabsLayout(): JSX.Element | null {
   const { user, loading } = useAuth();
@@ -20,7 +24,7 @@ export default function TabsLayout(): JSX.Element | null {
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" />
+        <ActivityIndicator size="large" color={theme.colors.primary} />
       </View>
     );
   }
@@ -35,6 +39,9 @@ export default function TabsLayout(): JSX.Element | null {
         <Tabs
           screenOptions={({ route }) => ({
             headerShown: true,
+            // ← use your yellow for active, grey for inactive
+            tabBarActiveTintColor: theme.colors.primary,
+            tabBarInactiveTintColor: '#999',
             tabBarStyle: {
               position: 'absolute',
               bottom: 20,
@@ -51,11 +58,9 @@ export default function TabsLayout(): JSX.Element | null {
             },
             tabBarIcon: ({ color, size }) => {
               let iconName: keyof typeof Ionicons.glyphMap = 'help';
-
-              if (route.name === 'dashboard') iconName = 'grid';
+              if (route.name === 'dashboard')        iconName = 'grid';
               else if (route.name === 'swipe/index') iconName = 'heart';
               else if (route.name === 'history/index') iconName = 'time';
-
               return <Ionicons name={iconName} size={size} color={color} />;
             },
           })}
