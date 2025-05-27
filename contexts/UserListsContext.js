@@ -47,14 +47,29 @@ export const UserListsProvider = ({children}) =>{
             }
 
             const listsRef = collection(firestore, "userLists");
-            const q = query (listsRef, where("userId", "==", userId));
+            const tmdbListsRef = collection(firestore, "TMDBLists");
 
-            const querySnapshot = await getDocs(q);
+            const q1 = query (listsRef, where("userId", "==", userId));
+            const q2 = query(tmdbListsRef, where("userId", "==", userId));
+
+            const [regularSnapshot, tmdbSnapshot] = await Promise.all([
+                getDocs(q1),
+                getDocs(q2)
+            ]);
+
             const lists = [];
 
-            querySnapshot.forEach((doc) =>{
+            regularSnapshot.forEach((doc) =>{
                 lists.push({
                     id:doc.id,
+                    ...doc.data(),
+                    listType: 'regular'
+                });
+            });
+
+            tmdbSnapshot.forEach((doc) => {
+                lists.push({
+                    id: doc.id,
                     ...doc.data()
                 });
             });
@@ -81,6 +96,11 @@ export const UserListsProvider = ({children}) =>{
 
             const listRef = doc(firestore, 'userLists', listId);
             const listSnap = await getDoc(listRef);
+
+            if(!listSnap.exists()){
+                listRef = doc(firestore, "TMDBLists", listId);
+                listSnap = await getDoc(listRef);
+            }
 
             if(listSnap.exists()){
                 console.log("List data found:", listSnap.data());
@@ -114,6 +134,13 @@ export const UserListsProvider = ({children}) =>{
 
         try{
             const listRef = doc(firestore, 'userLists', listId);
+            const listSnap = await getDoc(listRef);
+
+            let actualRef = listRef;
+
+            if(!listSnap.exists()){
+                actualRef = doc(firestore, "TMDBLists", listId);
+            }
 
             //add activity to firestore
             await updateDoc(listRef, {
@@ -150,6 +177,12 @@ export const UserListsProvider = ({children}) =>{
     const removeActivity = async (listId, activityToRemove) =>{
         try{
             const listRef = doc(firestore, 'userLists', listId);
+            const listSnap = await getDoc(listRef);
+
+            let actualRef = listRef;
+            if(!listRef.exists()){
+                actualRef = doc(firestore, "TMDBLists", listId);
+            }
 
             //Remove activity from firestore array
             await updateDoc(listRef, {
@@ -185,9 +218,13 @@ export const UserListsProvider = ({children}) =>{
 
     const deleteList = async (listId) =>{
         try{
-            //Delete document from Firestore
-            const listRef = doc(firestore, "userLists", listId);
-            await deleteDoc(listRef);
+            try{
+                const listRef = doc(firestore, "userLists", listId);
+                await deleteDoc(listRef);
+            }catch(error){
+                const tmdbListRef = doc(firestore, "TMDBLists", listId);
+                await deleteDoc(tmdbListRef);
+            }
 
             //Update local state
             const updatedLists = userLists.filter(list => list.id !== listId);
@@ -207,13 +244,20 @@ export const UserListsProvider = ({children}) =>{
         }
 
         const listsRef = collection(firestore, "userLists");
-        const q = query (listsRef,
+        const tmdbListsRef = collection(firestore, "TMDBLists");
+
+        const q1 = query (listsRef,
             where("userId", "==", auth.currentUser.uid),
             where("title", "==", title.trim())
         );
 
-        const querySnapshot = await getDocs(q);
-        return !querySnapshot.empty;
+        const q2 = query(tmdbListsRef, 
+            where("userId", "==", auth.currentUser.uid),
+            where("title", "==", title.trim())
+        );
+
+        const [snapshot1, snapshot2] = await Promise.all([getDocs(q1), getDocs(q2)]);
+        return !snapshot1.empty || !snapshot2.empty;
     }
 
     const createList = async(title, activities) =>{
@@ -239,7 +283,8 @@ export const UserListsProvider = ({children}) =>{
                 title: title.trim(),
                 activities: filteredActivities,
                 userId: auth.currentUser.uid,
-                createdAt: new Date()
+                createdAt: new Date(),
+                listType: 'regular'
             };
 
             const docRef = await addDoc(collection(firestore, "userLists"), listData);
@@ -276,7 +321,7 @@ export const UserListsProvider = ({children}) =>{
             }
 
             //Format activities from TMDB content
-            const activites = tmdbContent.map(item => {
+            const activities = tmdbContent.map(item => {
                 const providerInfo = options.providers && options.providers.length > 0
                     ? ` [${options.providers.join(', ')}]`
                     : '';
@@ -286,7 +331,7 @@ export const UserListsProvider = ({children}) =>{
             //Create metadata for TMDB list
             const metadata = {
                 listType: 'tmdb_watchlist',
-                tmdbOption: {
+                tmdbOptions: {
                     providers: options.providers || [],
                     includeMovies: options.includeMovies !== false,
                     includeTVShows: options.includeTVShows !== false,
@@ -299,13 +344,13 @@ export const UserListsProvider = ({children}) =>{
 
             const listData = {
                 title: title.trim(),
-                activites: activites,
+                activities: activities,
                 userId: auth.currentUser.uid,
                 createdAt: new Date(),
                 ...metadata
             };
 
-            const docRef = await addDoc(collection(firestore, "userLists"), listData);
+            const docRef = await addDoc(collection(firestore, "TMDBLists"), listData);
 
             const newList = {
                 iD: docRef.id,
@@ -324,7 +369,7 @@ export const UserListsProvider = ({children}) =>{
     //Function to refresh a TMDB list with new content
     const refreshTMDBList = async (listId) => {
         try{
-            const listRef = doc(firestore, 'userLists', listId);
+            const listRef = doc(firestore, 'TMDBLists', listId);
             const listSnap = await getDoc(listRef);
 
             if(!listSnap.exists()){

@@ -5,7 +5,7 @@ import { useUserLists } from "../contexts/UserListsContext";
 import { ProviderNames, StreamingProviders, generateWatchList } from "../hooks/useMovieAPI";
 
 const TMDBListGenerator = ({visible, onClose}) => {
-    const {createList} = useUserLists();
+    const {createTMDBList} = useUserLists();
 
     //Form state
     const [listTitle, setListTitle] = useState('');
@@ -69,16 +69,20 @@ const TMDBListGenerator = ({visible, onClose}) => {
 
             const tmdbContent = await generateWatchList(watchlistOptions);
 
-            //Format for our activity list
-            const activites = tmdbContent.map(item => {
-                const providerText = selectedProviders.size > 0 
-                ? ` [${Array.from(selectedProviders).map(id => ProviderNames[id]).join (', ')}]`
-                : '';
-                return `${item.title}${providerText}`;
-            });
+            if(!tmdbContent || tmdbContent.length === 0){
+                Alert.alert('Error', 'No content found with the selected criteria');
+                return;
+            }
+
 
             //Create the list
-            const result = await createList(listTitle.trim(), activites);
+            const result = await createTMDBList(listTitle.trim(), tmdbContent, {
+                providers: Array.from(selectedProviders).map(id => ProviderNames[id]),
+                includeMovies,
+                includeTVShows,
+                minRating,
+                sortBy
+            });
 
             if(result.success){
                 resetForm();
@@ -108,6 +112,18 @@ const TMDBListGenerator = ({visible, onClose}) => {
         if(!isGenerating){
             resetForm();
             onClose();
+        }
+    };
+
+    const handleCountDecrease = () => {
+        if(itemCount > 1){
+            setItemCount(itemCount - 1);
+        }
+    };
+
+    const handleCountIncrease = () => {
+        if(itemCount < 100){
+            setItemCount(itemCount + 1);
         }
     };
 
@@ -200,7 +216,7 @@ const TMDBListGenerator = ({visible, onClose}) => {
                         <View style={styles.counterContainer}>
                             <TouchableOpacity
                                 style={styles.counterButton}
-                                onPress={() => setItemCount(Math.max(1, itemCount - 5))}
+                                onPress={handleCountDecrease}
                                 disabled={isGenerating}
                             >
                                 <Ionicons name="remove" size={20} color='#3f51b5' />
@@ -208,7 +224,7 @@ const TMDBListGenerator = ({visible, onClose}) => {
                             <Text style={styles.counterTet}>{itemCount}</Text>
                             <TouchableOpacity
                                 style={styles.counterButton}
-                                onPress={() => setItemCount(Math.min(100, itemCount + 5))}
+                                onPress={handleCountIncrease}
                                 disabled={isGenerating}
                             >
                                 <Ionicons name="add" size={20} color="#3f51b5" />
