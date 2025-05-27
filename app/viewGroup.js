@@ -1,21 +1,25 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { ActivityIndicator, Alert, SafeAreaView, ScrollView, Share, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useGroupContext } from "../contexts/GroupContext";
+import { useUserLists } from "../contexts/UserListsContext";
 import { auth } from '../firebaseConfig';
 import * as FirestoreService from '../hooks/useFirestore';
+import TMDBListGenerator from "./tmdbListGenerator";
 import UserSearchModal from "./userSearchModal";
 
 export default function ViewGroup (){
     const { groupId, groupName} = useLocalSearchParams();
     const { leaveGroup, removeMember, loading, error} = useGroupContext();
+    const {createTMDBList} = useUserLists();
 
     const [groupDetails, setGroupDetails] = useState(null);
     const [members, setMembers] = useState([]);
     const [ activity, setActivity] = useState([]); //MAY NEED TO CHANGE
     const [loadingData, setLoadingData] = useState(true);
     const [isAddMemberModalVisible, setIsAddMemberModalVisible] = useState(false);
+    const [isTMDBModalVisible, setIsTMDBModalVisible] = useState(false);
 
     //Current user id
     const currentUserId = auth.currentUser?.uid;
@@ -139,9 +143,17 @@ export default function ViewGroup (){
         }
     }
 
-    //TO DO STILL 
-    const handleCreateActivity = () =>{
+    const handleCreateActivity = () => {
+        setIsTMDBModalVisible(true);
+    }
 
+    //Handle TMDB list creation success
+    const handleTMDBListCreated = async (listData) => {
+        try{
+            router.push(`/list/${listData.id}`);
+        }catch(error){
+            console.error("Error handling TMDB list creation: ", error);
+        }
     };
 
     if(loadingData){
@@ -263,6 +275,13 @@ export default function ViewGroup (){
                 }}
                 currentMembers={members.map(member=>member.id)}
                 groupId={groupId}
+            />
+
+            {/** TMDB List Generator Modal */}
+            <TMDBListGenerator
+                visible={isTMDBModalVisible}
+                onClose={() => setIsAddMemberModalVisible(false)}
+                onListCreated={handleTMDBListCreated}
             />
         </SafeAreaView>
     );
