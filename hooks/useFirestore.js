@@ -319,7 +319,7 @@ export const fetchActivitiesByGroupId = async(groupId) =>{
     console.log('Activities for group fetched successfully');
     return activities;
   }catch(error){
-    console.error("Error fetching activites by group id", error);
+    console.error("Error fetching activities by group id", error);
   }
 }
 
@@ -397,12 +397,12 @@ export const tmdbGetActivitiesByList = async(listId) => {
     const q = query(collection(firestore, tmdbActivitiesCollection), where('listId', '==', listId));
     const querySnapshot = await getDocs(q);
 
-    const activites = [];
+    const activities = [];
     querySnapshot.forEach((doc) => {
-      activites.push({id: doc.id, ...doc.date()});
+      activities.push({id: doc.id, ...doc.data()});
     });
 
-    return {success: true, data:activites};
+    return {success: true, data:activities};
   }catch(error){
     console.error("Error getting activity by list:", error);
     return {success: false, error: error.message};
@@ -414,16 +414,6 @@ export const tmdbGetActivitiesByList = async(listId) => {
 //Create a new list
 export const tmdbCreateList = async(listData) => {
   try{
-    const activites = listData.activites || [];
-    const activityPromises = activites.map(activity => 
-      tmdbCreateActivity({
-        ...activity,
-        listId: listData.id
-      })
-    );
-
-    await Promise.all(activityPromises);
-
     //Create the list
     const docRef = await addDoc(collection(firestore, tmdbListsCollection), {
       ...listData,
@@ -431,6 +421,17 @@ export const tmdbCreateList = async(listData) => {
       lastUpdated: new Date()
     });
 
+    const activities = listData.activities || [];
+    if(activities.length > 0){
+      const activityPromises = activities.map(activity => 
+        tmdbCreateActivity({
+          ...activity,
+          listId: listData.id
+        })
+      );
+      await Promise.all(activityPromises);
+    }
+    
     return {success: true, id: docRef.id};
   }catch(error){
     console.error("Error creating list:", error);
@@ -544,6 +545,7 @@ export const tmdbRefreshList = async(listId) =>{
       providers: tmdbOptions.providers || [],
       includeMovies: tmdbOptions.includeMovies !== false,
       includeTVShows: tmdbOptions.includeTVShows !== false,
+      count: tmdbOptions.count || 20,
       minRating: tmdbOptions.minRating || 0,
       sortBy: tmdbOptions.sortBy || 'popularity.desc'
     });
