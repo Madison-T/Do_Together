@@ -32,9 +32,20 @@ export const ProviderNames = {
 
 export const makeRequest = async(endpoint) => {
     try{
-        const response = await fetch(`${TMDB_BASE_URL}${endpoint}`);
+        const fullUrl = endpoint.includes('?') 
+            ? `${TMDB_BASE_URL}${endpoint}&api_key=${TMDB_API_KEY}`
+            : `${TMDB_BASE_URL}${endpoint}?api_key=${TMDB_API_KEY}`;
+
+        const response = await fetch(fullUrl, {
+            method: 'GET',
+            headers:{
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            }  
+        });
         if(!response.ok){
-            throw new Error(`HTTP error! status: ${response.status}`);
+            const errorData = await response.json();
+            throw new Error(`TMDB API error: ${errorData.status_message || response.statusText}`);
         }
         return await response.json();
     }catch(error){
@@ -54,9 +65,9 @@ export const discoverContent = async(options = {}) =>{
         region = 'US'
     } = options;
 
-    const endpoint = `/${contentType === 'movie' ? 'movie' : 'tv'}/discover?`;
+    const endpoint = `/discover/${contentType === 'movie' ? 'movie' : 'tv'}`;
     const params = new URLSearchParams({
-        api_key: TMDB_API_KEY,
+        //api_key: TMDB_API_KEY,
         sort_by: sortBy,
         page: page.toString(),
         'vote_average.gte': minRating.toString(),
@@ -65,34 +76,34 @@ export const discoverContent = async(options = {}) =>{
 
     if(providers.length > 0){
         params.append('with_watch_providers', providers.join('|'));
+        params.append('watch_region', region);
     }
 
     if(genre){
         params.append('with_genres', genre);
     }
 
-    endpoint += params.toString();
-    return await this.makeRequest(endpoint);
+    return await makeRequest(`${endpoint}?${params.toString()}`);
 };
 
 export const getPopularContent = async(contentType = 'movie', page = 1) => {
     const endpoint = `/${contentType === 'movie' ? 'movie' : 'tv'}/popular?api_key=${TMDB_API_KEY}&page=${page}`;
-    return await this.makeRequest(endpoint);
+    return await makeRequest(endpoint);
 };
 
 export const getTrendingContent = async(contentType = 'movie', timeWindow = 'week') => {
     const endpoint = `/trending/${contentType === 'movie' ? 'movie' : 'tv'}/${timeWindow}?api_key=${TMDB_API_KEY}`;
-    return await this.makeRequest(endpoint);
+    return await makeRequest(endpoint);
 };
 
 export const searchContent = async(query, contentType = 'multi', page = 1) => {
     const endpoint = `/search/${contentType}?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(query)}&page=${page}`;
-    return await this.makeRequest(endpoint);
+    return await makeRequest(endpoint);
 };
 
 export const getContentDetails = async(contentType, id) => {
     const endpoint = `/${contentType === 'movie' ? 'movie' : 'tv'}/${id}?api_key=${TMDB_API_KEY}&append_to_response=watch/providers,credits,similar`;
-    return await this.makeRequest(endpoint);
+    return await makeRequest(endpoint);
 };
 
 export const formatContentForList = async(item, contentType) => {
@@ -126,7 +137,7 @@ export const generateWatchList = async (options = {}) =>{
     } = options;
 
     try{
-        const allContent = [];
+        let allContent = [];
         const itemsPerType = Math.ceil(count / (includeMovies && includeTVShows ? 2 : 1));
 
         //Fetch movies if requested
@@ -138,12 +149,14 @@ export const generateWatchList = async (options = {}) =>{
                 minRating,
             };
             
-            const movieResponse = await this.discoverContent(movieOptions);
-            const movies = movieResponse.results.slice(0, itemsPerType).map(item => this.formatContentForList(item, 'movie'));
-
-            allContent = [...allContent, ...movies];
+            const movieResponse = await discoverContent(movieOptions);
+            if(movieResponse?.result){
+                const movies = await Promise.all(
+                    movieResponse.results.slice(0, itemsPerType).map(item => formatContentForList(item, 'movie'))
+                );
+                allContent = [...allContent, ...movies];
+            }
         }
-
         //Fetch TV Shows if requested
         if(includeTVShows){
             const tvOptions = {
@@ -153,16 +166,20 @@ export const generateWatchList = async (options = {}) =>{
                 minRating
             };
 
-            const tvResponse = await this.discoverContent(tvOptions);
-            const tvShows = tvResponse.results.slice(0, itemsPerType).map(item => this.formatContentForList(item, 'tv'));
-
-            allContent = [...allContent, ...tvShows];
+            const tvResponse = await discoverContent(tvOptions);
+            if(tvResponse?.result){
+                const tvShows = await Promise.all(
+                    tvResponse.results.slice(0, itemsPerType).map(item => formatContentForList(item, 'tv'))
+                );
+                allContent = [...allContent, ...tvShows];
+            }
         }
         
         //Shuffle and limit to requested count
-        const shuffled = allContent.sort(() => 0.5 - Math.random());
+        const shuffled = [...allContent].sort(() => 0.5 - Math.random());
         return shuffled.slice(0, count);
     }catch(error){
         console.error('Error generating watchlist:', error);
+        throw error;
     }
 };

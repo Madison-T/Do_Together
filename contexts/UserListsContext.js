@@ -1,7 +1,9 @@
+import { tmdbCreateList, tmdbGetList, tmdbRefreshList } from '@/hooks/useFirestore';
 import { addDoc, arrayRemove, arrayUnion, collection, deleteDoc, doc, getDoc, getDocs, query, updateDoc, where } from 'firebase/firestore';
+import { nanoid } from 'nanoid';
 import { createContext, useContext, useEffect, useState } from 'react';
 import { auth, firestore } from '../firebaseConfig';
-import { generateWatchList } from '../hooks/useMovieAPI';
+import { ProviderNames } from '../hooks/useMovieAPI';
 
 //Create the context
 const UserListsContext = createContext();
@@ -316,50 +318,74 @@ export const UserListsProvider = ({children}) =>{
                 return {success: false, error: "A list with this name already exists. Please choose a different name"};
             }
 
-            if(!tmdbContent || tmdbContent.length === 0){
-                throw new Error("No content provided for the list");
+            if(!Array.isArray(tmdbContent)){
+                throw new Error("Invalid content format");
             }
 
-            //Format activities from TMDB content
-            const activities = tmdbContent.map(item => {
-                const providerInfo = options.providers && options.providers.length > 0
-                    ? ` [${options.providers.join(', ')}]`
-                    : '';
-                return `${item.title}${providerInfo}`;
-            });
+            //Prepare list data
+            const listId = nanoid();
 
             //Create metadata for TMDB list
             const metadata = {
                 listType: 'tmdb_watchlist',
+                isGrouplist: options.isGrouplist || false,
+                groupId: options.groupId || null,
                 tmdbOptions: {
                     providers: options.providers || [],
                     includeMovies: options.includeMovies !== false,
                     includeTVShows: options.includeTVShows !== false,
                     minRating: options.minRating || 0,
-                    sortBy: options.sortBy || 'popularity.desc'
+                    sortBy: options.sortBy || 'popularity.desc',
+                    region: options.region || 'US',
+                    genres: options.genres || []
                 },
                 tmdbContent: tmdbContent, // Store the original TMDB data
                 generatedAt: new Date()
             };
 
             const listData = {
+                id: listId,
                 title: title.trim(),
-                activities: activities,
+                description: options.description || '',
                 userId: auth.currentUser.uid,
-                createdAt: new Date(),
+                isPublic: options.isPublic || false,
                 ...metadata
             };
 
-            const docRef = await addDoc(collection(firestore, "TMDBLists"), listData);
+            //Prepare activities
+            const activities = tmdbContent.map(item => ({
+                title: item.title,
+                tmdbId: item.tmdbId,
+                contentType: item.contentType,
+                posterPath: item.posterPath,
+                backdropPath: item.backdropPath,
+                providerInfo: options.providers && options.providers.length > 0
+                    ? options.providers.map(id => ProviderNames[id]).join(', ')
+                    : '',
+                addedAt: new Date(),
+                addedBy: auth.currentUser.uid,
+                listId: listId,
+                ...item
+            }));
 
-            const newList = {
-                iD: docRef.id,
-                ...listData
-            };
+            //Create the list with activities
+            const result = tmdbCreateList({
+                ...listData,
+                activities: activities
+            });
 
-            setUserLists(prevLists => [...prevLists, newList]);
+            if(result.success){
+                const newList = {
+                    ...listData,
+                    id: result.id,
+                    activities: activities
+                };
 
-            return {success: true, id: docRef.id, list: newList};
+                setUserLists(prevLists => [...prevLists, newList]);
+                return {success: true, id: result.id, list: newList};
+            }else{
+                return result;
+            }
         }catch(error){
             console.error("Error creating TMDB list:", error);
             return {success: false, error: error.message};
@@ -369,63 +395,22 @@ export const UserListsProvider = ({children}) =>{
     //Function to refresh a TMDB list with new content
     const refreshTMDBList = async (listId) => {
         try{
-            const listRef = doc(firestore, 'TMDBLists', listId);
-            const listSnap = await getDoc(listRef);
+            const result = tmdbRefreshList(listId);
 
-            if(!listSnap.exists()){
-                return {success: false, error: "List not found"};
+            if(result.success){
+                const listRef = await tmdbGetList(listId);
+                if(listRef.success){
+                    setUserLists(prevList =>
+                        prevList.map(list => list.id === listId ? listRef.data : list)
+                    );
+
+                    if(currentList && currentList.id === listId){
+                        setCurrentList(listRef.data);
+                    }
+                }
             }
 
-            const listData = listSnap.data();
-
-            if(listData.listType !== 'tmdb_watchlist'){
-                return {success: false, error: "This is not a TMDB watchlist"};
-            }
-
-            //Regenerate content with same options
-            const tmdbOptions = listData.tmdbOptions || {};
-            const newContent = await generateWatchList({
-                providers: tmdbOptions.providers || [],
-                includeMovies: tmdbOptions.includeMovies !== false,
-                includeTVShows: tmdbOptions.includeTVShows !== false,
-                count: listData.activites.length,
-                minRating: tmdbOptions.minRating || 0,
-                sortBy: tmdbOptions.sortBy || 'popularity.desc'
-            });
-
-            //Format new activities
-            const newActivities = newContent.map(item => {
-                const providerInfo = tmdbOptions.providers && tmdbOptions.providers.length > 0
-                    ? ` [${tmdbOptions.providers.join(', ')}]`
-                    : '';
-                return `${item.title}${providerInfo}`;
-            });
-
-            //Update Firestore
-            await updateDoc(listRef, {
-                activites: newActivities,
-                tmdbContent: newContent,
-                lastRefreshed: new Date()
-            });
-
-            //Update local state
-            const updatedList = {
-                ...listData,
-                id: listId,
-                activities: newActivities,
-                tmdbContent: newContent,
-                lastRefreshed: new Date()
-            };
-
-            setUserLists(prevLists =>
-                prevLists.map(list => list.id === listId ? updatedList : list)
-            );
-
-            if(currentList && currentList.id === listId) {
-                setCurrentList(updatedList);
-            }
-
-            return {success: true, list: updatedList};
+            return result;
         }catch(error){
             console.error("error refreshing TMDB list: ", error);
             return {success: false, error: "Failed tor refresh list"};

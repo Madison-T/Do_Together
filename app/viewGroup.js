@@ -150,7 +150,9 @@ export default function ViewGroup (){
     //Handle TMDB list creation success
     const handleTMDBListCreated = async (listData) => {
         try{
-            router.push(`/list/${listData.id}`);
+            await fetchGroupData();
+            setIsTMDBModalVisible(false);
+            console.log("Success. Watchlist created");
         }catch(error){
             console.error("Error handling TMDB list creation: ", error);
         }
