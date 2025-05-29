@@ -8,6 +8,7 @@ import { auth } from '../firebaseConfig';
 import * as FirestoreService from '../hooks/useFirestore';
 import TMDBListGenerator from "./tmdbListGenerator";
 import UserSearchModal from "./userSearchModal";
+import VotingSessionModal from './votingSessionModal';
 
 export default function ViewGroup (){
     const { groupId, groupName} = useLocalSearchParams();
@@ -16,10 +17,11 @@ export default function ViewGroup (){
 
     const [groupDetails, setGroupDetails] = useState(null);
     const [members, setMembers] = useState([]);
-    const [ activity, setActivity] = useState([]); //MAY NEED TO CHANGE
+    const [ votingSessions, setVotingSessions] = useState([]); //MAY NEED TO CHANGE
     const [loadingData, setLoadingData] = useState(true);
     const [isAddMemberModalVisible, setIsAddMemberModalVisible] = useState(false);
     const [isTMDBModalVisible, setIsTMDBModalVisible] = useState(false);
+    const [isVotingSessionModalVisible, setIsVotingSessionModalVisible] = useState(false);
 
     //Current user id
     const currentUserId = auth.currentUser?.uid;
@@ -51,8 +53,8 @@ export default function ViewGroup (){
 
             setMembers(memberDetails);
 
-            const fetchActivities = await FirestoreService.fetchActivitiesByGroupId(groupId);
-            setActivity(fetchActivities || []);
+            //const fetchVotingSessions = await FirestoreService.fetchVotingSessionsByGroupId(groupId);
+            //setVotingSessions(fetchVotingSessions || []);
         }catch(error){
             console.log("Error fetching group details", error);
         }finally{
@@ -143,8 +145,8 @@ export default function ViewGroup (){
         }
     }
 
-    const handleCreateActivity = () => {
-        setIsTMDBModalVisible(true);
+    const handleCreateVotingSession = () => {
+        setIsVotingSessionModalVisible(true);
     }
 
     //Handle TMDB list creation success
@@ -155,6 +157,16 @@ export default function ViewGroup (){
             console.log("Success. Watchlist created");
         }catch(error){
             console.error("Error handling TMDB list creation: ", error);
+        }
+    };
+
+    const handleVotingSessionCreated = async(sessionData) => {
+        try{
+            await fetchGroupData();
+            setIsVotingSessionModalVisible(false);
+            console.log("Success. Voting session created");
+        }catch(error){
+            console.error("Error handling voting session creation:", error);
         }
     };
 
@@ -236,24 +248,45 @@ export default function ViewGroup (){
                     </View>
                 </View>
 
-                {/** Activities Section*/}
+                {/** Voting Session Section */}
                 <View style={styles.section}>
                     <View style={styles.sectionHeader}>
-                        <Text style={styles.sectionTitle}>Activities</Text>
-                        <TouchableOpacity style={styles.createActivityButton} onPress={handleCreateActivity}>
-                            <Ionicons name="add-circle-outline" size={20} color="#3f51b5" />
-                            <Text style={styles.createActivityText}>Create Activity</Text>
+                        <Text style={styles.sectionTitle}>Voting Sessions</Text>
+                        <TouchableOpacity style={styles.createVotingSessionButton}
+                            onPress = {handleCreateVotingSession}
+                        >
+                            <Ionicons name="ballot-outline" size={20} color="#3f51b5" />
+                            <Text style={styles.createVotingSessionText}>Create Voting Session</Text>
                         </TouchableOpacity>
                     </View>
 
-                    {activity.length === 0 ? (
-                        <View style={styles.emptyActivitiesContainer}>
-                            <Text style={styles.emptyActivitiesText}>No Activities yet</Text>
-                            <Text style={styles.emptyActivitiesSubtext}>Create an activity to get started</Text>
+                    {votingSessions.length === 0 ? (
+                        <View style={styles.emptyVotingSessionsContainter}>
+                            <Text style={styles.emptyVotingSessionsText}>No Voting Sessions yet</Text>
+                            <Text style={styles.emptyVotingSessionsSubtext}>Create a voting session to get started</Text>
                         </View>
                     ):(
-                        <View style={styles.activityList}>
-                            {/**TO DO */}
+                        <View style={styles.votingSessionList}>
+                            {votingSessions.map((session) => (
+                                <View key={session.id} style={styles.votingSessionItem}>
+                                    <View style={styles.votingSessionContent}>
+                                        <Text style={styles.votingSessionTitle}>{session.title}</Text>
+                                        <Text style={styles.votingSessionDate}>
+                                            {new Date(session.createdAt.seconds * 1000).toLocaleDateString()}
+                                        </Text>
+                                        <Text style={styles.votingSessionDescription}>{session.description}</Text>
+                                        <Text style={styles.participantsText}>
+                                            {session.votes ? Object.keys(session.votes).length : 0} votes cast
+                                        </Text>
+                                    </View>
+                                    <TouchableOpacity
+                                        style = {styles.votingSessionButton}
+                                        onPress={() => router.push(`votingSession/${session.id}`)}
+                                    >
+                                        <Ionicons name="chevron-forward" size={20} color="#3f51b5" />
+                                    </TouchableOpacity>
+                                </View>
+                            ))}
                         </View>
                     )}
                 </View>
@@ -284,6 +317,18 @@ export default function ViewGroup (){
                 visible={isTMDBModalVisible}
                 onClose={() => setIsAddMemberModalVisible(false)}
                 onListCreated={handleTMDBListCreated}
+            />
+
+            {/** Voting Session Modal */}
+            <VotingSessionModal
+                visible={isVotingSessionModalVisible}
+                onClose={()=> setIsVotingSessionModalVisible(false)}
+                onSessionCreated={handleVotingSessionCreated}
+                onShowTMDBGenerator={()=>{
+                    setIsVotingSessionModalVisible(false);
+                    setIsTMDBModalVisible(true);
+                }}
+                groupId={groupId}
             />
         </SafeAreaView>
     );
@@ -433,22 +478,19 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
     },
-    createActivityButton: {
+    createVotingSessionButton: {
         flexDirection: 'row',
         alignItems: 'center',
     },
-    createActivityText: {
+    createVotingSessionText: {
         color: '#3f51b5',
         marginLeft: 4,
         fontWeight: '600',
     },
-    activityList: {
+    votingSessionList: {
         marginTop: 8,
     },
-    activityListContent: {
-        paddingBottom: 8,
-    },
-    activityItem: {
+    votingSessionItem: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
@@ -459,20 +501,20 @@ const styles = StyleSheet.create({
         borderLeftWidth: 4,
         borderLeftColor: '#3f51b5',
     },
-    activityContent: {
+    votingSessionContent: {
         flex: 1,
     },
-    activityTitle: {
+    votingSessionTitle: {
         fontSize: 16,
         fontWeight: 'bold',
         color: '#333',
     },
-    activityDate: {
+    votingSessionDate: {
         fontSize: 14,
         color: '#666',
         marginTop: 2,
     },
-    activityDescription: {
+    votingSessionDescription: {
         fontSize: 14,
         color: '#777',
         marginTop: 4,
@@ -482,16 +524,21 @@ const styles = StyleSheet.create({
         color: '#3f51b5',
         marginTop: 6,
     },
-    emptyActivitiesContainer: {
+    votingSessionButton:{
+        padding: 8,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    emptyVotingSessionsContainter: {
         paddingVertical: 20,
         alignItems: 'center',
     },
-    emptyActivitiesText: {
+    emptyVotingSessionsText: {
         fontSize: 16,
         color: '#888',
         fontWeight: '500',
     },
-    emptyActivitiesSubtext: {
+    emptyVotingSessionsSubtext: {
         fontSize: 14,
         color: '#aaa',
         marginTop: 4,

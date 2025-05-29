@@ -586,3 +586,102 @@ export const tmdbRefreshList = async(listId) =>{
     return {success: false, error: error.message};
   }
 }
+
+// ===================== VOTING SESSIONS =====================
+
+const votingSessionsCollection = 'VotingSessions';
+
+//New voting session
+export const createVotingSession = async(sessionData) => {
+  try{
+    const docRef = await addDoc(collection(firestore, votingSessionsCollection), {
+      ...sessionData,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      status: 'active',
+      votes: {},
+      participants: []
+    });
+
+    console.log('Voting session created successfully with ID:', docRef.id);
+    return {success: true, id: docRef.id, session: {id: docRef.id, ...sessionData}};
+  }catch(error){
+    console.error('Error creating voting session:', error);
+    return {success: false, error: error.message};
+  }
+};
+
+
+//Fetching voting sessions by group Id
+export const fetchVotingSessionsByGroupId = async (groupId) => {
+  try{
+    const q = query(
+      collection(firestore, votingSessionsCollection),
+      where('groupId', '==', groupId),
+      orderBy('createdAt', 'desc')
+    );
+
+    const querySnapshot = await getDocs(q);
+    const sessions = [];
+
+    querySnapshot.forEach((doc) => {
+      sessions.push({id: doc.id, ...doc.data()});
+    });
+
+    console.log('Voting sessions fetched successfully');
+    return sessions;
+  }catch(error){
+    console.error('Error fetching voting sessions:', error);
+    return [];
+  }
+};
+
+//Fetch a single voting session by ID
+export const fetchVotingSessionById = async(sessionId) => {
+  try{
+    const docRef = doc(firestore, votingSessionsCollection, sessionId);
+    const docSnap = await getDoc(docRef);
+
+    if(docSnap.exists()){
+      return {success: true, data: {id: docSnap.id, ...docSnap.data()}};
+    }else{
+      return {success: false, error: 'Voting session not found'};
+    }
+  }catch(error){
+    console.error('Error fetching voting session.', error);
+    return {success: false, error: error.message};
+  }
+};
+
+//Update voting session
+export const updateVotingSession = async(sessionId, updateData) => {
+  try{
+    const docRef = doc(firestore, votingSessionsCollection, sessionId);
+    await updateDoc(docRef, {
+      ...updateData,
+      updatedAt: new Date()
+    });
+
+    console.log('Voting session updated successfully');
+    return {success: true};
+  }catch(error){
+    console.error('Error updating voting session:', error);
+    return {success: false, error: error.message};
+  }
+};
+
+//Delete voting session
+export const deleteVotingSession = async(sessionId) => {
+  try{
+    const docRef = doc(firestore, votingSessionsCollection, sessionId);
+    await deleteDoc(docRef);
+
+    console.log('Voting session deleted successfully');
+    return {success: true};
+  }catch(error){
+    console.error('Error deleting voting session:', error);
+    return {success: false, error: error.message};
+  }
+};
+
+//
