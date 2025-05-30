@@ -336,7 +336,7 @@ export const UserListsProvider = ({children}) =>{
                     includeTVShows: options.includeTVShows !== false,
                     minRating: options.minRating || 0,
                     sortBy: options.sortBy || 'popularity.desc',
-                    region: options.region || 'US',
+                    region: options.region || 'NZ',
                     genres: options.genres || []
                 },
                 tmdbContent: tmdbContent, // Store the original TMDB data
