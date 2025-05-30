@@ -53,8 +53,8 @@ export default function ViewGroup (){
 
             setMembers(memberDetails);
 
-            //const fetchVotingSessions = await FirestoreService.fetchVotingSessionsByGroupId(groupId);
-            //setVotingSessions(fetchVotingSessions || []);
+            const fetchVotingSessions = await FirestoreService.fetchVotingSessionsByGroupId(groupId);
+            setVotingSessions(fetchVotingSessions || []);
         }catch(error){
             console.log("Error fetching group details", error);
         }finally{
@@ -315,8 +315,9 @@ export default function ViewGroup (){
             {/** TMDB List Generator Modal */}
             <TMDBListGenerator
                 visible={isTMDBModalVisible}
-                onClose={() => setIsAddMemberModalVisible(false)}
+                onClose={() => setIsTMDBModalVisible(false)}
                 onListCreated={handleTMDBListCreated}
+                groupId={groupId}
             />
 
             {/** Voting Session Modal */}

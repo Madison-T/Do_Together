@@ -2,9 +2,11 @@ import { Ionicons } from "@expo/vector-icons";
 import { useState } from "react";
 import { ActivityIndicator, Alert, Modal, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useUserLists } from "../contexts/UserListsContext";
+import { auth } from '../firebaseConfig';
+import * as FirestoreService from '../hooks/useFirestore';
 import { ProviderNames, StreamingProviders, generateWatchList } from "../hooks/useMovieAPI";
 
-const TMDBListGenerator = ({visible, onClose, groupId}) => {
+const TMDBListGenerator = ({visible, onClose, groupId, onListCreated}) => {
     const {createTMDBList} = useUserLists();
 
     //Form state
@@ -88,12 +90,17 @@ const TMDBListGenerator = ({visible, onClose, groupId}) => {
                 minRating,
                 sortBy,
                 isGroupList: !!groupId,
-                groupId: groupId
+                groupId: groupId || null
             });
 
             if(result.success){
                 resetForm();
-                onClose(result.list);
+                handleCreateVotingSessionFromList(result.list);
+                if(onListCreated){
+                    onListCreated(result.list);
+                }else{
+                    onClose(result.list);
+                }
             }else{
                 Alert.alert('Error', result.error || 'Failed to create list');
             }
@@ -105,6 +112,30 @@ const TMDBListGenerator = ({visible, onClose, groupId}) => {
             setIsGenerating(false);
         }
     };
+
+    const handleCreateVotingSessionFromList = async (list) => {
+        try{
+            const sessionData = {
+                title: `${list.name} Voting`,
+                description: `Vote on items from ${list.name}`,
+                groupId: groupId,
+                createdBy: auth.currentUser.uid,
+                listId: list.id,
+                activities: list.activities || [],
+                sessionType: 'tmdb'
+            };
+
+            const result = await FirestoreService.createVotingSession(sessionData);
+
+            if(result.success){
+                return;
+            }else{
+                console.log('Error. Failed to create voting session');
+            }
+        }catch(error){
+            console.error("Error. Failed to create voting session. Try again");
+        }
+    }
 
     const resetForm = () =>{
         setListTitle('');
