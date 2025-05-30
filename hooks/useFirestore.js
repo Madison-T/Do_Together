@@ -355,15 +355,21 @@ export const fetchPresetListById = async (listId) => {
 
 // ===================== VOTING SESSIONS =====================
 
-export const createVotingSession = async (sessionId, {
-  groupId,
-  createdBy,
-  activities,
-  startTime,
-  endTime,
-}) => {
+
+export const createVotingSession = async (
+  sessionId,
+  {
+    name,          // ✅ include name in parameter destructuring
+    groupId,
+    createdBy,
+    activities,
+    startTime,
+    endTime,
+  }
+) => {
   try {
     await setDoc(doc(firestore, 'VotingSessions', sessionId), {
+      name,        // ✅ save session name
       groupId,
       createdBy,
       activities,

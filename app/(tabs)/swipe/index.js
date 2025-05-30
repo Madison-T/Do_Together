@@ -170,7 +170,7 @@ export default function SwipeScreen() {
           <Text style={styles.label}>Select Voting Session</Text>
           <ModalSelector
             data={votingSessions.map((s) => ({
-              label: new Date(s.startTime).toLocaleString(),
+              label: s.name || new Date(s.startTime).toLocaleString(),
               key: s.id,
             }))}
             initValue="-- Select Session --"

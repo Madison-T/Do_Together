@@ -12,6 +12,7 @@ export const VotingSessionProvider = ({ children }) => {
   const [selectedGroupId, setSelectedGroupId] = useState(null);
   const [startTime, setStartTime] = useState(null);
   const [endTime, setEndTime] = useState(null);
+  const [sessionName, setSessionName] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -28,19 +29,21 @@ export const VotingSessionProvider = ({ children }) => {
     setSelectedGroupId(null);
     setStartTime(null);
     setEndTime(null);
+    setSessionName('');
     setError(null);
   };
 
-  const submitSession = async () => {
-    if (!user || !selectedGroupId || !startTime || !endTime || selectedActivities.length === 0) {
+  const submitSession = async (name) => {
+    if (!user || !selectedGroupId || !startTime || !endTime || selectedActivities.length === 0 || !name) {
       setError('All fields are required');
-      return;
+      return { success: false };
     }
 
     try {
       setLoading(true);
       const sessionId = `${selectedGroupId}_${Date.now()}`;
       await createVotingSession(sessionId, {
+        name,
         groupId: selectedGroupId,
         createdBy: user.uid,
         activities: selectedActivities,
@@ -63,6 +66,8 @@ export const VotingSessionProvider = ({ children }) => {
     selectedGroupId,
     startTime,
     endTime,
+    sessionName,
+    setSessionName,
     addActivity,
     setSelectedGroupId,
     setStartTime,
@@ -73,5 +78,9 @@ export const VotingSessionProvider = ({ children }) => {
     error,
   };
 
-  return <VotingSessionContext.Provider value={value}>{children}</VotingSessionContext.Provider>;
+  return (
+    <VotingSessionContext.Provider value={value}>
+      {children}
+    </VotingSessionContext.Provider>
+  );
 };
