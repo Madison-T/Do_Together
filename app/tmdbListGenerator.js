@@ -1,13 +1,22 @@
 import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from 'expo-router';
 import { useState } from "react";
-import { ActivityIndicator, Alert, Modal, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, InteractionManager, Modal, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useUserLists } from "../contexts/UserListsContext";
-import { auth } from '../firebaseConfig';
-import * as FirestoreService from '../hooks/useFirestore';
+import { useVotingSessionContext } from "../contexts/VotingSessionContext";
 import { ProviderNames, StreamingProviders, generateWatchList } from "../hooks/useMovieAPI";
 
 const TMDBListGenerator = ({visible, onClose, groupId, onListCreated}) => {
+    const router = useRouter();
     const {createTMDBList} = useUserLists();
+    const {
+        submitSession,
+        setSelectedGroupId,
+        setStartTime,
+        setEndTime,
+        setSessionName,
+        addActivity
+    } = useVotingSessionContext();
 
     //Form state
     const [listTitle, setListTitle] = useState('');
@@ -81,7 +90,6 @@ const TMDBListGenerator = ({visible, onClose, groupId, onListCreated}) => {
                 return;
             }
 
-
             //Create the list
             const result = await createTMDBList(listTitle.trim(), tmdbContent, {
                 providers: Array.from(selectedProviders).map(id => ProviderNames[id]),
@@ -108,35 +116,42 @@ const TMDBListGenerator = ({visible, onClose, groupId, onListCreated}) => {
         }catch(error){
             console.error('Error generating TMDB list: ', error);
         }finally{
-            
             setIsGenerating(false);
         }
     };
 
     const handleCreateVotingSessionFromList = async (list) => {
-        try{
-            const sessionData = {
-                title: `${list.name} Voting`,
-                description: `Vote on items from ${list.name}`,
-                groupId: groupId,
-                createdBy: auth.currentUser.uid,
-                listId: list.id,
-                activities: list.activities || [],
-                sessionType: 'tmdb'
-            };
+    try {
+         console.log("Received list object:", list); // Add this line for debugging
 
-            const result = await FirestoreService.createVotingSession(sessionData);
-
-            if(result.success){
-                return;
-            }else{
-                console.log('Error. Failed to create voting session');
-            }
-        }catch(error){
-            console.error("Error. Failed to create voting session. Try again");
+        if (!list || (!list.title && !list.name)) {
+            console.warn("Invalid list object passed to handleCreateVotingSessionFromList");
+            Alert.alert("Error", "Invalid list returned. Please try again.");
+            return;
         }
-    }
 
+        const resolvedTitle = list.title || list.name || "Untitled";
+
+        // Set context values for voting session
+        setSelectedGroupId(groupId);
+        setSessionName(`${resolvedTitle} Voting`);
+        setStartTime(new Date().toISOString());
+        setEndTime(new Date(Date.now() + 15 * 60000).toISOString()); // +15 minutes
+        (list.activities || []).forEach(addActivity);
+
+        InteractionManager.runAfterInteractions(() => {
+  router.push({
+    pathname: '/createVoteSession',
+    params: {
+      listId: list.id,
+      listType: 'tmdb',
+    },
+  });
+});
+    } catch (error) {
+        console.error("Error. Failed to create voting session. Try again", error);
+    }
+};
     const resetForm = () =>{
         setListTitle('');
         setSelectedProviders(new Set());

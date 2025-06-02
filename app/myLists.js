@@ -45,9 +45,14 @@ export default function MyListsScreen() {
             onPress={() => handleSelectList(item)}
           >
             <View style={styles.listItemContent}>
-              <Text style={styles.listTitle}>{item.title}</Text>
+              <Text style={styles.listTitle}>{item.title || item.name || 'Untitled List'}</Text>
               <Text style={styles.listCount}>
-                {item.activities ? item.activities.length : 0} {(item.activities?.length === 1) ? 'activity' : 'activities'}
+              {item.listType === 'tmdb_watchlist'
+                ? (item.tmdbContent?.length || 0)
+                : (item.activities?.length || 0)}{' '}
+              {(item.listType === 'tmdb_watchlist'
+                ? (item.tmdbContent?.length === 1 ? 'activity' : 'activities')
+                : (item.activities?.length === 1 ? 'activity' : 'activities'))}
               </Text>
             </View>
             <Ionicons name="chevron-forward" size={22} color="#777" />

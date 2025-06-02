@@ -207,36 +207,43 @@ const VotingSessionModal = ({visible, onClose, onSessionCreated, onShowTMDBGener
 
     //render categories
     const renderCategories = () => (
-        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-            <Text style={styles.instructionText}>Select a category to create a voting session</Text>
-            <View style={styles.categoriesGrid}>
-                {/** Create your own list card */}
-                <TouchableOpacity
-                    style={[styles.categoryCard, styles.createListCard]}
-                    onPress={() => router.push('Create Lists')}
-                    disabled={loading}
-                >
-                    <View style={[styles.categoryIcon, {backgroundColor: '#4CAF50'}]}>
-                        <Ionicons name="add" size={24} color="#fff" />
-                    </View>
-                </TouchableOpacity>
+  <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+    <Text style={styles.instructionText}>Select a category to create a voting session</Text>
+    <View style={styles.categoriesGrid}>
+      {/* Create your own list card */}
+      <TouchableOpacity
+        style={[styles.categoryCard, styles.createListCard]}
+        onPress={() => router.push('Create Lists')}
+        disabled={loading}
+      >
+        <View style={styles.categoryRow}>
+          <View style={[styles.categoryIcon, { backgroundColor: '#4CAF50' }]}>
+            <Ionicons name="add" size={24} color="#fff" />
+          </View>
+          <Text style={styles.categoryName}>Create List</Text>
+        </View>
+      </TouchableOpacity>
 
-                {/** Category Cards */}
-                {listCategories.map((category) => (
-                    <TouchableOpacity
-                        key={category.id}
-                        style={[styles.categoryCard, {borderLeftColor: category.color}]}
-                        onPress={() => handleCategorySelectWithCards(category)}
-                        disabled={loading}
-                    >
-                        <View style={[styles.categoryIcon, {backgroundColor:category.color}]}>
-                            <Ionicons name={category.icon} size={24} color="#fff" />
-                        </View>
-                    </TouchableOpacity>
-                ))}
+      {/* Category Cards */}
+      {listCategories.map((category) => (
+        <TouchableOpacity
+          key={category.id}
+          style={[styles.categoryCard, { borderLeftColor: category.color }]}
+          onPress={() => handleCategorySelectWithCards(category)}
+          disabled={loading}
+        >
+          <View style={styles.categoryRow}>
+            <View style={[styles.categoryIcon, { backgroundColor: category.color }]}>
+              <Ionicons name={category.icon} size={24} color="#fff" />
             </View>
-        </ScrollView>
-    );
+            <Text style={styles.categoryName}>{category.name}</Text>
+          </View>
+        </TouchableOpacity>
+      ))}
+    </View>
+  </ScrollView>
+);
+
 
     //Lists selection
     const renderListsSelection = () => (
@@ -508,10 +515,12 @@ const styles = StyleSheet.create({
         marginBottom: 8,
     },
     categoryName: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: '#333',
-        textAlign: 'center',
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+    flexShrink: 1,           // allow text to shrink
+    flexWrap: 'wrap',        // allow wrapping
+    marginLeft: 10,          // spacing from icon
     },
     selectionHeader:{
         flexDirection: 'row',
@@ -699,6 +708,11 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: '600',
     },
+    categoryRow: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  gap: 10,
+},
 });
 
 export default VotingSessionModal;

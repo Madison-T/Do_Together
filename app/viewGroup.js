@@ -10,6 +10,7 @@ import TMDBListGenerator from "./tmdbListGenerator";
 import UserSearchModal from "./userSearchModal";
 import VotingSessionModal from './votingSessionModal';
 
+
 export default function ViewGroup (){
     const { groupId, groupName} = useLocalSearchParams();
     const { leaveGroup, removeMember, loading, error} = useGroupContext();
@@ -53,7 +54,7 @@ export default function ViewGroup (){
 
             setMembers(memberDetails);
 
-            const fetchVotingSessions = await FirestoreService.fetchVotingSessionsByGroupId(groupId);
+            const fetchVotingSessions = await FirestoreService.fetchVotingSessionsByGroup(groupId);
             setVotingSessions(fetchVotingSessions || []);
         }catch(error){
             console.log("Error fetching group details", error);
@@ -249,47 +250,82 @@ export default function ViewGroup (){
                 </View>
 
                 {/** Voting Session Section */}
-                <View style={styles.section}>
-                    <View style={styles.sectionHeader}>
-                        <Text style={styles.sectionTitle}>Voting Sessions</Text>
-                        <TouchableOpacity style={styles.createVotingSessionButton}
-                            onPress = {handleCreateVotingSession}
-                        >
-                            <Ionicons name="ballot-outline" size={20} color="#3f51b5" />
-                            <Text style={styles.createVotingSessionText}>Create Voting Session</Text>
-                        </TouchableOpacity>
-                    </View>
+  <View style={styles.section}>
+    <View style={styles.sectionHeader}>
+      <Text style={styles.sectionTitle}>Voting Sessions</Text>
+      <TouchableOpacity
+        style={styles.createVotingSessionButton}
+        onPress={handleCreateVotingSession}
+      >
+        <Ionicons name="ballot-outline" size={20} color="#3f51b5" />
+        <Text style={styles.createVotingSessionText}>Create Voting Session</Text>
+      </TouchableOpacity>
+    </View>
 
-                    {votingSessions.length === 0 ? (
-                        <View style={styles.emptyVotingSessionsContainter}>
-                            <Text style={styles.emptyVotingSessionsText}>No Voting Sessions yet</Text>
-                            <Text style={styles.emptyVotingSessionsSubtext}>Create a voting session to get started</Text>
-                        </View>
-                    ):(
-                        <View style={styles.votingSessionList}>
-                            {votingSessions.map((session) => (
-                                <View key={session.id} style={styles.votingSessionItem}>
-                                    <View style={styles.votingSessionContent}>
-                                        <Text style={styles.votingSessionTitle}>{session.title}</Text>
-                                        <Text style={styles.votingSessionDate}>
-                                            {new Date(session.createdAt.seconds * 1000).toLocaleDateString()}
-                                        </Text>
-                                        <Text style={styles.votingSessionDescription}>{session.description}</Text>
-                                        <Text style={styles.participantsText}>
-                                            {session.votes ? Object.keys(session.votes).length : 0} votes cast
-                                        </Text>
-                                    </View>
-                                    <TouchableOpacity
-                                        style = {styles.votingSessionButton}
-                                        onPress={() => router.push(`votingSession/${session.id}`)}
-                                    >
-                                        <Ionicons name="chevron-forward" size={20} color="#3f51b5" />
-                                    </TouchableOpacity>
-                                </View>
-                            ))}
-                        </View>
-                    )}
-                </View>
+    {votingSessions.length === 0 ? (
+      <View style={styles.emptyVotingSessionsContainter}>
+        <Text style={styles.emptyVotingSessionsText}>No Voting Sessions yet</Text>
+        <Text style={styles.emptyVotingSessionsSubtext}>Create a voting session to get started</Text>
+      </View>
+    ) : (
+      <View style={styles.votingSessionList}>
+        {votingSessions.map((session) => {
+  const now = Date.now();
+  let sessionEndMillis = 0;
+
+if (session?.endTime?.seconds) {
+  sessionEndMillis = session.endTime.seconds * 1000;
+} else if (typeof session?.endTime === 'string' || session?.endTime instanceof Date) {
+  sessionEndMillis = new Date(session.endTime).getTime();
+}
+
+const isExpired = sessionEndMillis > 0 && Date.now() > sessionEndMillis;
+
+  const title = isExpired ? `${session.name} Results` : session.name;
+  const createdAtDate = session.createdAt?.seconds
+    ? new Date(session.createdAt.seconds * 1000).toLocaleDateString()
+    : "Date unavailable";
+  const voteCount = session.votes ? Object.keys(session.votes).length : 0;
+
+  return (
+    <View
+      key={session.id}
+      style={[
+        styles.votingSessionItem,
+        { borderLeftColor: isExpired ? '#f44336' : '#4caf50' } // 🔴 Red if expired, 🟢 Green if active
+      ]}
+    >
+      <View style={styles.votingSessionContent}>
+        <Text style={styles.votingSessionTitle}>{title}</Text>
+        <Text style={styles.votingSessionDate}>{createdAtDate}</Text>
+        <Text style={styles.votingSessionDescription}>
+          {session.description || "No description"}
+        </Text>
+        <Text style={styles.participantsText}>{voteCount} votes cast</Text>
+      </View>
+      <TouchableOpacity
+        style={styles.votingSessionButton}
+        onPress={() => {
+          if (isExpired) {
+            router.push(`/results/${session.id}`);
+          } else {
+            router.push({
+              pathname: '/(tabs)/swipe',
+              params: { sessionId: session.id, groupId },
+            });
+          }
+        }}
+      >
+        <Ionicons name="chevron-forward" size={20} color="#3f51b5" />
+      </TouchableOpacity>
+    </View>
+  );
+})}
+
+</View>
+
+    )}
+  </View>
 
                 {/** Leave Group */}
                 {!isCreator && (

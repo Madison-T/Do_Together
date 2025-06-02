@@ -29,7 +29,7 @@ export default function PresetListView() {
   }, [listId]);
 
   const handleCreateSession = () => {
-    router.push({ pathname: '/createVoteSession', params: { listId } });
+    router.push({ pathname: '/createVoteSession', params: { listId, listType: 'preset' } });
   };
 
   return (

@@ -18,8 +18,15 @@ import { useUserLists } from '../contexts/UserListsContext';
 export default function ListDetailsScreen() {
     const router = useRouter();
     const { listId, listType } = useLocalSearchParams();
-    
-    const {currentList, listLoading, listError, loadListDetails, addActivity, removeActivity} = useUserLists();
+
+    const {
+        currentList,
+        listLoading,
+        listError,
+        loadListDetails,
+        addActivity,
+        removeActivity
+    } = useUserLists();
 
     const [newActivity, setNewActivity] = useState('');
     const [isAdding, setIsAdding] = useState(false);
@@ -30,66 +37,76 @@ export default function ListDetailsScreen() {
     }, [listId]);
 
     const loadListData = async () => {
-        if(listId){
+        if (listId) {
             await loadListDetails(listId);
         }
     };
 
-
     const handleAddActivity = async () => {
         setErrorMessage('');
 
-        if(!newActivity.trim()){
+        if (!newActivity.trim()) {
             Alert.alert('Error', 'Please enter an activity');
             return;
         }
 
-        try{
+        try {
             const activityText = newActivity.trim();
             const isDuplicate = currentList.activities?.some(
                 activity => activity.toLowerCase() === activityText.toLowerCase()
             );
 
-            if(isDuplicate){
+            if (isDuplicate) {
                 setErrorMessage('This activity already exists in the list');
                 return;
             }
 
             setIsAdding(true);
-            const result = await addActivity(listId, newActivity.trim());
+            const result = await addActivity(listId, activityText);
 
-            if(result.success){
+            if (result.success) {
                 setNewActivity('');
-            }else{
+            } else {
                 setErrorMessage(result.error || 'Failed to add activity');
             }
-        }catch(error){
+        } catch (error) {
             console.error("Failed to add activity:", error);
             setErrorMessage('An unexpected error occured');
-        }finally{
+        } finally {
             setIsAdding(false);
         }
     };
 
     const handleRemoveActivity = async (activityToRemove) => {
         const result = await removeActivity(listId, activityToRemove);
-        if(!result.success){
+        if (!result.success) {
             Alert.alert('Error', result.error || 'Failed to remove activity');
         }
     };
 
-    const renderActivity = ({ item }) => (
-        <View style={styles.activityItem}>
-            <Text style={styles.activityText}>{item}</Text>
-            
-            <TouchableOpacity 
-                style={styles.removeActivityButton}
-                onPress={() => handleRemoveActivity(item)}
-            >
-                <Ionicons name="close-circle" size={24} color="#f44336" />
-            </TouchableOpacity>
-        </View>
-    );
+    const handleCreateSession = () => {
+        router.push({
+            pathname: '/createVoteSession',
+            params: { listId, listType: listType || 'user' }
+        });
+    };
+
+    const renderActivity = ({ item, index }) => (
+  <View style={styles.activityItem} key={index}>
+    <Text style={styles.activityText}>
+      {typeof item === 'string'
+        ? item
+        : item.title || item.name || 'Untitled'}
+    </Text>
+    <TouchableOpacity
+      style={styles.removeActivityButton}
+      onPress={() => handleRemoveActivity(item)}
+    >
+      <Ionicons name="close-circle" size={24} color="#f44336" />
+    </TouchableOpacity>
+  </View>
+);
+    const activityCount = currentList?.activities?.length || 0;
 
     if (listLoading) {
         return (
@@ -105,7 +122,7 @@ export default function ListDetailsScreen() {
             <View style={styles.centeredContainer}>
                 <Ionicons name="alert-circle" size={60} color="#f44336" />
                 <Text style={styles.errorText}>{listError}</Text>
-                <TouchableOpacity 
+                <TouchableOpacity
                     style={styles.backButton}
                     onPress={() => router.back()}
                 >
@@ -128,9 +145,9 @@ export default function ListDetailsScreen() {
             <View style={styles.header}>
                 <Text style={styles.title}>{currentList.title}</Text>
             </View>
-            
+
             <Text style={styles.sectionTitle}>
-                Activities ({currentList.activities?.length || 0})
+                Activities ({activityCount})
             </Text>
 
             {errorMessage ? (
@@ -138,14 +155,13 @@ export default function ListDetailsScreen() {
                     <Ionicons name="close-circle" size={24} color="#d32f2f" />
                     <Text style={styles.errorText}>{errorMessage}</Text>
                 </View>
-            ): null}
-            
-            {/* Add New Activity Input */}
+            ) : null}
+
             <View style={styles.addActivityContainer}>
                 <TextInput
                     style={styles.addActivityInput}
                     value={newActivity}
-                    onChangeText={(text) =>{
+                    onChangeText={(text) => {
                         setNewActivity(text);
                         setErrorMessage('');
                     }}
@@ -164,8 +180,8 @@ export default function ListDetailsScreen() {
                     )}
                 </TouchableOpacity>
             </View>
-            
-            {currentList.activities?.length > 0 ? (
+
+            {activityCount > 0 ? (
                 <FlatList
                     data={currentList.activities}
                     keyExtractor={(item, index) => index.toString()}
@@ -181,6 +197,22 @@ export default function ListDetailsScreen() {
                     </Text>
                 </View>
             )}
+
+            <TouchableOpacity
+                style={[
+                    styles.createSessionButton,
+                    activityCount < 3 && styles.disabledButton
+                ]}
+                onPress={handleCreateSession}
+                disabled={activityCount < 3}
+            >
+                <Text style={styles.createSessionText}>Start Voting Session</Text>
+                {activityCount < 3 && (
+                    <Text style={styles.disabledHint}>
+                        Add at least 3 activities to start
+                    </Text>
+                )}
+            </TouchableOpacity>
         </KeyboardAvoidingView>
     );
 }
@@ -227,26 +259,12 @@ const styles = StyleSheet.create({
         color: '#3f51b5',
         flex: 1,
     },
-    editButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#3f51b5',
-        paddingVertical: 8,
-        paddingHorizontal: 12,
-        borderRadius: 20,
-    },
-    editButtonText: {
-        color: 'white',
-        marginLeft: 5,
-        fontWeight: '500',
-    },
     sectionTitle: {
         fontSize: 18,
         fontWeight: '600',
         color: '#555',
         marginBottom: 15,
     },
-    // New styles for add activity input
     addActivityContainer: {
         flexDirection: 'row',
         marginBottom: 20,
@@ -319,7 +337,7 @@ const styles = StyleSheet.create({
         marginTop: 5,
         textAlign: 'center',
     },
-    errorContainer:{
+    errorContainer: {
         backgroundColor: 'white',
         padding: 10,
         borderRadius: 8,
@@ -329,10 +347,31 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
     },
-    errorText:{
+    errorText: {
         marginLeft: 10,
         color: 'black',
         fontSize: 14,
         textAlign: 'center',
+    },
+    createSessionButton: {
+        marginTop: 30,
+        backgroundColor: '#3f51b5',
+        padding: 14,
+        borderRadius: 8,
+        alignItems: 'center',
+    },
+    disabledButton: {
+        backgroundColor: '#ccc',
+    },
+    createSessionText: {
+        color: 'white',
+        fontSize: 16,
+        fontWeight: 'bold',
+    },
+    disabledHint: {
+        color: 'white',
+        fontSize: 12,
+        fontStyle: 'italic',
+        marginTop: 4,
     },
 });

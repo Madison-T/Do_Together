@@ -1,3 +1,4 @@
+// app/createVoteSession.js
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -15,14 +16,16 @@ import {
 import DateTimePickerModal from 'react-native-modal-datetime-picker';
 import { useGroupContext } from '../contexts/GroupContext';
 import { usePresetLists } from '../contexts/PresetListsContext';
+import { useUserLists } from '../contexts/UserListsContext';
 import { useVotingSessionContext } from '../contexts/VotingSessionContext';
-import { fetchVotingSessionsByGroup } from '../hooks/useFirestore'; // used for duplicate session name check
+import { fetchVotingSessionsByGroup } from '../hooks/useFirestore';
 
 export default function CreateVoteSession() {
   const router = useRouter();
-  const { listId } = useLocalSearchParams();
+  const { listId, listType } = useLocalSearchParams();
 
   const { getPresetListById } = usePresetLists();
+  const { getUserListById } = useUserLists();
   const { groups } = useGroupContext();
 
   const {
@@ -36,6 +39,8 @@ export default function CreateVoteSession() {
     setEndTime,
     submitSession,
     loading,
+    clearSession,                // ✅ added
+    prefillSessionFromList       // ✅ added
   } = useVotingSessionContext();
 
   const [activityList, setActivityList] = useState([]);
@@ -46,15 +51,25 @@ export default function CreateVoteSession() {
   const [errors, setErrors] = useState({});
 
   useEffect(() => {
-    const loadPreset = async () => {
-      const list = await getPresetListById(listId);
-      if (list) {
-        setTitle(list.title);
-        setActivityList(list.activities);
+    const loadActivities = async () => {
+      if (listId && listType) {
+        let data = null;
+        if (listType === 'user' || listType === 'tmdb') {
+          data = await getUserListById(listId);
+        } else {
+          data = await getPresetListById(listId);
+        }
+
+        if (data) {
+          setTitle(data.title || data.name || 'Untitled List');
+          setActivityList(data.activities || []);
+          clearSession();
+          prefillSessionFromList(data);
+        }
       }
     };
-    loadPreset();
-  }, [listId]);
+    loadActivities();
+  }, [listId, listType]);
 
   const openPicker = (isStart) => {
     setIsStartTime(isStart);
@@ -90,7 +105,6 @@ export default function CreateVoteSession() {
       newErrors.end = 'Session must be at least 5 minutes long';
     }
 
-    // Duplicate session name check
     if (sessionName && selectedGroupId) {
       const sessions = await fetchVotingSessionsByGroup(selectedGroupId);
       const duplicate = sessions.find(s =>
@@ -113,7 +127,6 @@ export default function CreateVoteSession() {
       router.replace('/dashboard');
     }
   };
-
   return (
     <ScrollView contentContainerStyle={styles.scrollContent}>
       <View style={styles.container}>
@@ -159,17 +172,30 @@ export default function CreateVoteSession() {
 
         <Text style={styles.sectionHeading}>Select Activities</Text>
         {activityList.map((item, index) => (
-          <TouchableOpacity
-            key={index}
-            style={[
-              styles.activityItem,
-              selectedActivities.includes(item) && styles.selectedActivity,
-            ]}
-            onPress={() => addActivity(item)}
-          >
-            <Text style={styles.activityText}>{item}</Text>
-          </TouchableOpacity>
-        ))}
+  <TouchableOpacity
+    key={index}
+    style={[
+      styles.activityItem,
+      selectedActivities.some((a) =>
+        typeof a === 'object' && typeof item === 'object'
+          ? a.tmdbId && item.tmdbId && a.tmdbId === item.tmdbId
+          : a === item
+      ) && styles.selectedActivity,
+    ]}
+    onPress={() => addActivity(item)}
+  >
+    <Text style={styles.activityText}>
+  {(() => {
+    if (typeof item === 'string') return item;
+    if (typeof item.title === 'string') return item.title;
+    if (typeof item.name === 'string') return item.name;
+    console.warn('Invalid activity item title:', item);
+    return 'Untitled';
+  })()}
+</Text>
+  </TouchableOpacity>
+))}
+
         {errors.activities && <Text style={styles.error}>{errors.activities}</Text>}
 
         <Text style={styles.sectionHeading}>Voting Start Time</Text>
@@ -244,6 +270,7 @@ export default function CreateVoteSession() {
     </ScrollView>
   );
 }
+
 const styles = StyleSheet.create({
   scrollContent: {
     paddingBottom: 40,

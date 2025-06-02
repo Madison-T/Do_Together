@@ -17,12 +17,24 @@ export const VotingSessionProvider = ({ children }) => {
   const [error, setError] = useState(null);
 
   const addActivity = (activity) => {
-    setSelectedActivities((prev) =>
-      prev.includes(activity)
-        ? prev.filter((a) => a !== activity)
-        : [...prev, activity]
+    setSelectedActivities((prev) => {
+  const exists = prev.some((a) =>
+    typeof a === 'object' && typeof activity === 'object'
+      ? a.tmdbId && activity.tmdbId && a.tmdbId === activity.tmdbId
+      : a === activity
+  );
+
+  if (exists) {
+    return prev.filter((a) =>
+      typeof a === 'object' && typeof activity === 'object'
+        ? a.tmdbId && activity.tmdbId && a.tmdbId !== activity.tmdbId
+        : a !== activity
     );
-  };
+  } else {
+    return [...prev, activity];
+  }
+});
+};
 
   const clearSession = () => {
     setSelectedActivities([]);
@@ -61,6 +73,13 @@ export const VotingSessionProvider = ({ children }) => {
     }
   };
 
+  const prefillSessionFromList = (list, groupId = null) => {
+  if (!list || !Array.isArray(list.activities)) return;
+
+  setSelectedActivities(list.activities);
+  if (groupId) setSelectedGroupId(groupId);
+};
+
   const value = {
     selectedActivities,
     selectedGroupId,
@@ -76,6 +95,7 @@ export const VotingSessionProvider = ({ children }) => {
     submitSession,
     loading,
     error,
+    prefillSessionFromList,
   };
 
   return (

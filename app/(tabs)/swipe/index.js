@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
   Animated,
@@ -25,7 +26,7 @@ export default function SwipeScreen() {
   const { user } = useAuth();
   const { groups } = useGroupContext();
   const { votes, castVote } = useVotesContext();
-
+  const { groupId: passedGroupId, sessionId: passedSessionId } = useLocalSearchParams();
   const [selectedGroupId, setSelectedGroupId] = useState(null);
   const [votingSessions, setVotingSessions] = useState([]);
   const [selectedSessionId, setSelectedSessionId] = useState(null);
@@ -57,38 +58,53 @@ export default function SwipeScreen() {
 
   useEffect(() => {
     if (groups.length > 0) {
+      const initialGroupId = passedGroupId || groups[0].id;
       setSelectedGroupId(groups[0].id);
     }
   }, [groups]);
 
   useEffect(() => {
-    const loadSessions = async () => {
-      if (!user || !selectedGroupId) return;
-      const sessions = await fetchVotingSessionsByGroup(selectedGroupId);
-      setVotingSessions(sessions);
-      if (sessions.length > 0) {
-        setSelectedSessionId(sessions[0].id);
-      } else {
-        setSelectedSessionId(null);
-      }
-    };
-    loadSessions();
-  }, [selectedGroupId]);
+  const loadSessions = async () => {
+    if (!user || !selectedGroupId) return;
+    const sessions = await fetchVotingSessionsByGroup(selectedGroupId);
+
+    const now = new Date().toISOString();
+    const activeSessions = sessions.filter(s => s.endTime > now);
+
+    setVotingSessions(activeSessions);
+
+    if (passedSessionId && activeSessions.find(s => s.id === passedSessionId)) {
+      setSelectedSessionId(passedSessionId);
+    } else if (activeSessions.length > 0) {
+      setSelectedSessionId(activeSessions[0].id);
+    } else {
+      setSelectedSessionId(null);
+      setSessionActivities([]); // Clear cards
+    }
+  };
+
+  loadSessions();
+}, [selectedGroupId, user, passedSessionId]);
+
 
   useEffect(() => {
-    if (!selectedSessionId) return;
-    const session = votingSessions.find((s) => s.id === selectedSessionId);
-    if (!session) return;
+  if (!selectedSessionId) return;
+  const session = votingSessions.find((s) => s.id === selectedSessionId);
+  if (!session) return;
 
-    const votedIds = votes.map((v) => v.activityId);
-    const activityObjs = session.activities.map((title, index) => ({
-      id: `${selectedSessionId}_${index}`,
-      name: title,
-      description: '',
-    }));
-    const visible = activityObjs.filter((a) => !votedIds.includes(a.id));
-    setSessionActivities(visible);
-  }, [selectedSessionId, votes, votingSessions]);
+  const votedIds = votes.map((v) => v.activityId);
+  const activityObjs = session.activities.map((title, index) => ({
+    id: `${selectedSessionId}_${index}`,
+    name:
+      typeof title === 'string'
+        ? title
+        : title.title || title.originalTitle || title.name || 'Untitled',
+    description: '',
+  }));
+  const visible = activityObjs.filter((a) => !votedIds.includes(a.id));
+  setSessionActivities(visible);
+  position.setValue({ x: 0, y: 0 }); // Reset card position when session changes
+}, [selectedSessionId, votes, votingSessions]);
 
   const resetPosition = () => {
     Animated.spring(position, {
@@ -160,24 +176,43 @@ export default function SwipeScreen() {
       <SafeAreaView style={styles.container}>
         <View style={styles.dropdownContainer}>
           <Text style={styles.label}>Select Group</Text>
-          <ModalSelector
-            data={groups.map((g) => ({ label: g.name, key: g.id }))}
-            initValue="-- Select Group --"
-            onChange={(option) => setSelectedGroupId(option.key)}
-            selectedKey={selectedGroupId}
-            style={styles.modalSelector}
-          />
-          <Text style={styles.label}>Select Voting Session</Text>
-          <ModalSelector
-            data={votingSessions.map((s) => ({
-              label: s.name || new Date(s.startTime).toLocaleString(),
-              key: s.id,
-            }))}
-            initValue="-- Select Session --"
-            onChange={(option) => setSelectedSessionId(option.key)}
-            selectedKey={selectedSessionId}
-            style={styles.modalSelector}
-          />
+          {/* Group Selector */}
+<ModalSelector
+  data={groups.map((g) => ({ label: g.name, key: g.id }))}
+  initValue={
+    selectedGroupId
+      ? groups.find((g) => g.id === selectedGroupId)?.name || '-- Select Group --'
+      : '-- Select Group --'
+  }
+  onChange={(option) => {
+    setSelectedGroupId(option.key);
+    setVotingSessions([]);
+    setSessionActivities([]);
+  }}
+  style={styles.modalSelector}
+/>
+
+{/* Voting Session Selector */}
+<Text style={styles.label}>Select Active Voting Session</Text>
+<ModalSelector
+  data={votingSessions.map((s) => ({
+    label: s.name || new Date(s.startTime).toLocaleString(),
+    key: s.id,
+  }))}
+  initValue={
+    selectedSessionId
+      ? votingSessions.find((s) => s.id === selectedSessionId)?.name ||
+        new Date(
+          votingSessions.find((s) => s.id === selectedSessionId)?.startTime || ''
+        ).toLocaleString()
+      : '-- Select Session --'
+  }
+  onChange={(option) => {
+    setSelectedSessionId(option.key);
+    setSessionActivities([]); // reset cards
+  }}
+  style={styles.modalSelector}
+/>
         </View>
 
         <View style={styles.cardContainer}>
