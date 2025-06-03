@@ -33,7 +33,7 @@ const TMDBListGenerator = ({visible, onClose, groupId, onListCreated}) => {
 
     const sortOptions = [
         {value: 'popularity.desc', label: 'Most Popular'},
-        {value: 'vote_average.desc', label: 'HighestRated'},
+        {value: 'vote_average.desc', label: 'Highest Rated'},
         {value: 'release_date.desc', label: 'Newest'},
         {value: 'vote_count.desc', label: 'Most Voted'}
     ];
