@@ -176,11 +176,14 @@ export default function CreateVoteSession() {
     key={index}
     style={[
       styles.activityItem,
-      selectedActivities.some((a) =>
-        typeof a === 'object' && typeof item === 'object'
-          ? a.tmdbId && item.tmdbId && a.tmdbId === item.tmdbId
-          : a === item
-      ) && styles.selectedActivity,
+      selectedActivities.some((a) => {
+  if (typeof a === 'object' && typeof item === 'object') {
+    if (a.tmdbId && item.tmdbId) return a.tmdbId === item.tmdbId;
+    if (a.placeId && item.placeId) return a.placeId === item.placeId;
+    return a.title === item.title && a.address === item.address;
+  }
+  return a === item;
+}) && styles.selectedActivity,
     ]}
     onPress={() => addActivity(item)}
   >

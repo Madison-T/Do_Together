@@ -6,10 +6,10 @@ import { useGroupContext } from "../contexts/GroupContext";
 import { useUserLists } from "../contexts/UserListsContext";
 import { auth } from '../firebaseConfig';
 import * as FirestoreService from '../hooks/useFirestore';
+import PlacesListGenerator from './PlacesListGenerator';
 import TMDBListGenerator from "./tmdbListGenerator";
 import UserSearchModal from "./userSearchModal";
 import VotingSessionModal from './votingSessionModal';
-
 
 export default function ViewGroup (){
     const { groupId, groupName} = useLocalSearchParams();
@@ -23,6 +23,7 @@ export default function ViewGroup (){
     const [isAddMemberModalVisible, setIsAddMemberModalVisible] = useState(false);
     const [isTMDBModalVisible, setIsTMDBModalVisible] = useState(false);
     const [isVotingSessionModalVisible, setIsVotingSessionModalVisible] = useState(false);
+    const [isPlacesModalVisible, setIsPlacesModalVisible] = useState(false);
 
     //Current user id
     const currentUserId = auth.currentUser?.uid;
@@ -358,15 +359,30 @@ const isExpired = sessionEndMillis > 0 && Date.now() > sessionEndMillis;
 
             {/** Voting Session Modal */}
             <VotingSessionModal
-                visible={isVotingSessionModalVisible}
-                onClose={()=> setIsVotingSessionModalVisible(false)}
-                onSessionCreated={handleVotingSessionCreated}
-                onShowTMDBGenerator={()=>{
-                    setIsVotingSessionModalVisible(false);
-                    setIsTMDBModalVisible(true);
-                }}
-                groupId={groupId}
+            visible={isVotingSessionModalVisible}
+            onClose={() => setIsVotingSessionModalVisible(false)}
+            onSessionCreated={handleVotingSessionCreated}
+            onShowTMDBGenerator={() => {
+                setIsVotingSessionModalVisible(false);
+                setIsTMDBModalVisible(true);
+            }}
+            onShowPlacesGenerator={() => {
+                setIsVotingSessionModalVisible(false); // Hide voting modal
+                setIsPlacesModalVisible(true);         // Show Places modal
+            }}
+            groupId={groupId}
             />
+            <PlacesListGenerator
+            visible={isPlacesModalVisible}
+            onClose={() => setIsPlacesModalVisible(false)}
+            groupId={groupId}
+            onListCreated={async (newList) => {
+                await fetchGroupData();
+                setIsPlacesModalVisible(false);
+                console.log("Success. Places list created");
+            }}
+            />
+
         </SafeAreaView>
     );
 }

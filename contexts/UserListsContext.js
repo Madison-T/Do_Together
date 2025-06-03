@@ -293,10 +293,9 @@ export const UserListsProvider = ({ children }) => {
         };
       }
 
-      const filteredActivities = activities.filter((activity) => activity.trim() !== '');
-      if (filteredActivities.length === 0) {
-        throw new Error('Please add at least one activity');
-      }
+      const filteredActivities = activities.filter(
+  (activity) => typeof activity?.title === 'string' && activity.title.trim() !== ''
+);
 
       const listData = {
         title: title.trim(),

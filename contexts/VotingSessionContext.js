@@ -16,25 +16,35 @@ export const VotingSessionProvider = ({ children }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const addActivity = (activity) => {
-    setSelectedActivities((prev) => {
-  const exists = prev.some((a) =>
-    typeof a === 'object' && typeof activity === 'object'
-      ? a.tmdbId && activity.tmdbId && a.tmdbId === activity.tmdbId
-      : a === activity
-  );
+const addActivity = (activity) => {
+  setSelectedActivities((prev) => {
+    const exists = prev.some((a) => {
+      if (typeof a === 'object' && typeof activity === 'object') {
+        // TMDB match
+        if (a.tmdbId && activity.tmdbId) return a.tmdbId === activity.tmdbId;
+        // Places match
+        if (a.placeId && activity.placeId) return a.placeId === activity.placeId;
+        // Fallback match
+        return a.title === activity.title && a.address === activity.address;
+      }
+      return a === activity;
+    });
 
-  if (exists) {
-    return prev.filter((a) =>
-      typeof a === 'object' && typeof activity === 'object'
-        ? a.tmdbId && activity.tmdbId && a.tmdbId !== activity.tmdbId
-        : a !== activity
-    );
-  } else {
-    return [...prev, activity];
-  }
-});
+    if (exists) {
+      return prev.filter((a) => {
+        if (typeof a === 'object' && typeof activity === 'object') {
+          if (a.tmdbId && activity.tmdbId) return a.tmdbId !== activity.tmdbId;
+          if (a.placeId && activity.placeId) return a.placeId !== activity.placeId;
+          return a.title !== activity.title || a.address !== activity.address;
+        }
+        return a !== activity;
+      });
+    } else {
+      return [...prev, activity];
+    }
+  });
 };
+
 
   const clearSession = () => {
     setSelectedActivities([]);

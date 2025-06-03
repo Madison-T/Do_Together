@@ -14,7 +14,7 @@ import { useUserLists } from "../contexts/UserListsContext";
 import { auth } from '../firebaseConfig';
 import * as FirestoreService from '../hooks/useFirestore';
 
-const VotingSessionModal = ({visible, onClose, onSessionCreated, onShowTMDBGenerator, groupId}) => {
+const VotingSessionModal = ({visible, onClose, onSessionCreated, onShowTMDBGenerator, onShowPlacesGenerator, groupId}) => {
     const [currentView, setCurrentView] = useState('categories');
     const [selectedCategory, setSelectedCategory] = useState(null);
     const [activeTab, setActiveTab] = useState('generic');
@@ -184,6 +184,11 @@ const VotingSessionModal = ({visible, onClose, onSessionCreated, onShowTMDBGener
             onShowTMDBGenerator();
             return;
         }
+        if (category.id === 'restaurants') {
+            onShowPlacesGenerator();
+        return;
+        }
+
         setCurrentView('cardSelection');
     }
 
