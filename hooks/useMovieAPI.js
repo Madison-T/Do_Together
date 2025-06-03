@@ -1,33 +1,27 @@
 import { TMDB_API_KEY, TMDB_BASE_URL } from '../apiKeys';
 
 export const StreamingProviders = {
-netflix: 8,
-amazon_prime: 119,
-disney_plus: 337,
-hulu: 15,
-hbo_max: 384,
-apple_tv: 350,
-paramount_plus: 531,
-peacock: 386,
-youtube_premium: 188,
-crunchyroll: 283,
-starz: 43,
-showtime: 37
+    disney_plus: 337,
+    netflix: 8,
+    amazon_prime: 9,
+    apple_tv: 350,
+    youtube_premium: 188,
+    crunchyroll: 283,
+    plex: 538,
+    hoopla: 212,
+    just_watch_tv: 2285    
 };
 
 export const ProviderNames = {
-8: 'Netflix',
-119: 'Amazon Prime Video',
-337: 'Disney Plus',
-15: 'Hulu',
-384: 'HBO Max',
-350: 'Apple TV+',
-531: 'Paramount+',
-386: 'Peacock',
-188: 'Youtube Premium',
-283: 'Crunchyroll',
-43: 'Starz',
-37: 'Showtime'
+    337: 'Disney Plus',
+    8: 'Netflix',
+    9: 'Amazon Prime Video',
+    350: 'Apple TV+',
+    188: 'Youtube Premium',
+    283: 'Crunchyroll',
+    538: 'Plex',
+    212: 'Hoopla',
+    2285: 'Just Watch TV'
 };
 
 //Validate helper functions
