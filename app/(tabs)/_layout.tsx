@@ -61,6 +61,7 @@ export default function TabsLayout(): JSX.Element | null {
               if (route.name === 'dashboard')        iconName = 'grid';
               else if (route.name === 'swipe/index') iconName = 'heart';
               else if (route.name === 'history/index') iconName = 'time';
+              else if (route.name === 'profile') iconName = 'person-circle-outline';
               return <Ionicons name={iconName} size={size} color={color} />;
             },
           })}
