@@ -258,7 +258,7 @@ export default function ViewGroup (){
         style={styles.createVotingSessionButton}
         onPress={handleCreateVotingSession}
       >
-        <Ionicons name="ballot-outline" size={20} color="#3f51b5" />
+        <Ionicons name="checkbox-outline" size={20} color="#3f51b5" />
         <Text style={styles.createVotingSessionText}>Create Voting Session</Text>
       </TouchableOpacity>
     </View>
