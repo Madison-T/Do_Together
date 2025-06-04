@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
-import React, { useEffect, useState } from "react";
-import { ActivityIndicator, Alert, SafeAreaView, ScrollView, Share, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useEffect, useState } from "react";
+import { ActivityIndicator, Alert, Image, SafeAreaView, ScrollView, Share, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useGroupContext } from "../contexts/GroupContext";
 import { auth } from '../firebaseConfig';
 import * as FirestoreService from '../hooks/useFirestore';
@@ -34,16 +34,25 @@ export default function ViewGroup (){
 
             //Fetch member details
             const memberDetails = await Promise.all(
-                (group.members || []).map(async(memberId) =>{
-                    try{
-                        const user = await FirestoreService.fetchUserById(memberId);
-                        return {id: memberId, name: user?.name || 'Unknown User'};
-                    }catch(error){
-                        console.log("Error fetching member", error);
-                        return {id: memberId, name: 'Unknown User'};
-                    }
-                }) 
-            );
+  (group.members || []).map(async (memberId) => {
+    try {
+      const user = await FirestoreService.fetchUserById(memberId);
+      return {
+        id: memberId,
+        name: `${user?.firstName ?? 'Unknown'} ${user?.lastName ?? ''}`,
+        photoURL: user?.photoURL ?? null,
+      };
+    } catch (error) {
+      console.log("Error fetching member", error);
+      return {
+        id: memberId,
+        name: 'Unknown User',
+        photoURL: null,
+      };
+    }
+  })
+);
+
 
             setMembers(memberDetails);
 
@@ -124,20 +133,26 @@ export default function ViewGroup (){
     };
 
     //handling adding users to the group
-    const handleAddUsers = async (userIds) =>{
-        try{
-            const result = await FirestoreService.addUsersToGroup(groupId, userIds);
+    const handleAddUsers = async (userIds) => {
+  try {
+    console.log("Trying to add users:", userIds); // check correct UIDs
+    const result = await FirestoreService.addUsersToGroup(groupId, userIds);
 
-            if(result.success){
-                Alert.alert("Success", result.message);
-                await fetchGroupData();
-            }else{
-                Alert.alert("Error", result.message);
-            }
-        }catch(error){
-            console.error("Error adding members", error);
-        }
+    if (result.success) {
+      console.log("Added successfully, refreshing group...");
+      Alert.alert("Success", result.message);
+      await fetchGroupData(); // reload member info
+    } else {
+      console.log("Add failed:", result);
+      Alert.alert("Error", result.message || "Failed to add user");
     }
+  } catch (error) {
+    console.error("Error adding members:", error);
+    Alert.alert("Error", "Failed to add user. Check Firestore and console logs.");
+  }
+};
+
+
 
     //TO DO STILL 
     const handleCreateActivity = () =>{
@@ -206,11 +221,20 @@ export default function ViewGroup (){
                         {members.map((member) => (
                         <View key={member.id} style={styles.memberItem}>
                             <View style={styles.memberInfo}>
-                                <View style={styles.memberAvatar}>
-                                    <Text style={styles.memberInitial}>
+                                {member.photoURL ? (
+                                    <Image
+                                        source={{ uri: member.photoURL }}
+                                        style={styles.memberAvatarImage}
+                                    />
+                                    ) : (
+                                    <View style={styles.memberAvatarPlaceholder}>
+                                        <Text style={styles.memberInitial}>
                                         {member.name.charAt(0).toUpperCase()}
-                                    </Text>
-                                </View>
+                                        </Text>
+                                    </View>
+                                    )}
+
+
                                 <Text style={styles.memberName}>
                                     {member.name} {member.id === groupDetails?.createdBy && '(Creator)'} 
                                     {member.id === currentUserId && ' (You)'}
@@ -475,6 +499,22 @@ const styles = StyleSheet.create({
         color: '#aaa',
         marginTop: 4,
     },
+    memberAvatarImage: {
+  width: 40,
+  height: 40,
+  borderRadius: 20,
+  marginRight: 10,
+  backgroundColor: '#ccc',
+},
+    memberAvatarPlaceholder: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: '#ccc',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: 10,
+    },
     joinCodeText: {
         fontSize: 20,
         fontWeight: 'bold',
@@ -483,4 +523,5 @@ const styles = StyleSheet.create({
         marginBottom: 12,
         letterSpacing: 1.2,
     },
+    
 });
