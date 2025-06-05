@@ -1,15 +1,15 @@
 import {
-  addDoc,
-  collection,
-  deleteDoc,
-  doc,
-  getDoc,
-  getDocs,
-  orderBy,
-  query,
-  setDoc,
-  updateDoc,
-  where,
+    addDoc,
+    collection,
+    deleteDoc,
+    doc,
+    getDoc,
+    getDocs,
+    orderBy,
+    query,
+    setDoc,
+    updateDoc,
+    where,
 } from 'firebase/firestore';
 import { firestore } from '../firebaseConfig';
 import { generateWatchList, ProviderNames } from './useMovieAPI';
