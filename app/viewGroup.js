@@ -2,15 +2,14 @@ import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    SafeAreaView,
-    ScrollView,
-    Share,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  Alert,
+  SafeAreaView,
+  ScrollView,
+  Share,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from "react-native";
  
 import { useGroupContext } from "../contexts/GroupContext";
@@ -171,9 +170,209 @@ export default function ViewGroup() {
   };
   if (loadingData) {
     return (
-      <SafeAreaView style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#3f51b5" />
-      </SafeAreaView>
+        <SafeAreaView style={styles.container}>
+            <ScrollView style={styles.scrollContainer}>
+                {/* Header */}
+                <View style={styles.header}>
+                    <TouchableOpacity
+                        style={styles.backButton}
+                        onPress = {()=> router.back()}
+                    >
+                        <Ionicons name="arrow-back" size={24} color="#3f51b5" />
+                    </TouchableOpacity>
+                    <Text style={styles.groupName}>{groupName}</Text>
+                </View>
+
+                {/*Group Description */}
+                {groupDetails?.description && (
+                    <View style={styles.section}>
+                        <Text style={styles.sectionTitle}>Description</Text>
+                        <Text style={styles.description}>{groupDetails.description}</Text>
+                    </View>
+                )}
+
+                {/* Share Code Button */}
+                {groupId && (  // Changed from joinCode to joinId
+                    <View style={styles.section}>
+                        <Text style={styles.sectionTitle}>Join Code</Text>
+                        <View style={styles.joinCodeContainer}>
+                            <Text style={styles.joinCodeText}>{groupId}</Text>
+                            <TouchableOpacity style={styles.shareButton} onPress={handleShareCode}>
+                                <Ionicons name="share-outline" size={20} color="#fff" />
+                                <Text style={styles.shareButtonText}>Share Group Code</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                )}
+
+                {/** Members Section */}
+                <View style={styles.section}>
+                    <View style={styles.sectionHeader}>
+                        <Text style={styles.sectionTitle}>Members ({members.length})</Text>
+                        {isCreator && (
+                            <TouchableOpacity
+                                style={styles.addMemberButton}
+                                onPress={() => setIsAddMemberModalVisible(true)}
+                            >
+                                <Ionicons name="person-add-outline" size={20} color="#3f51b5" />
+                                <Text style={styles.addMemberText}>Add Member</Text>
+                            </TouchableOpacity>
+                        )}
+                    </View>
+                    <View style={styles.membersList}>
+                        {members.map((member) => (
+                        <View key={member.id} style={styles.memberItem}>
+                            <View style={styles.memberInfo}>
+                                <View style={styles.memberAvatar}>
+                                    <Text style={styles.memberInitial}>
+                                        {member.name.charAt(0).toUpperCase()}
+                                    </Text>
+                                </View>
+                                <Text style={styles.memberName}>
+                                    {member.name} {member.id === groupDetails?.createdBy && '(Creator)'} 
+                                    {member.id === currentUserId && ' (You)'}
+                                </Text>
+                            </View>
+                            {removeMemberDesign(member)}
+                        </View>
+                        ))}
+                    </View>
+                </View>
+
+                {/** Voting Session Section */}
+  <View style={styles.section}>
+    <View style={styles.sectionHeader}>
+      <Text style={styles.sectionTitle}>Voting Sessions</Text>
+      <TouchableOpacity
+        style={styles.createVotingSessionButton}
+        onPress={handleCreateVotingSession}
+      >
+        <Ionicons name="checkbox-outline" size={20} color="#3f51b5" />
+        <Text style={styles.createVotingSessionText}>Create Voting Session</Text>
+      </TouchableOpacity>
+    </View>
+
+    {votingSessions.length === 0 ? (
+      <View style={styles.emptyVotingSessionsContainter}>
+        <Text style={styles.emptyVotingSessionsText}>No Voting Sessions yet</Text>
+        <Text style={styles.emptyVotingSessionsSubtext}>Create a voting session to get started</Text>
+      </View>
+    ) : (
+      <View style={styles.votingSessionList}>
+        {votingSessions.map((session) => {
+  const now = Date.now();
+  let sessionEndMillis = 0;
+
+if (session?.endTime?.seconds) {
+  sessionEndMillis = session.endTime.seconds * 1000;
+} else if (typeof session?.endTime === 'string' || session?.endTime instanceof Date) {
+  sessionEndMillis = new Date(session.endTime).getTime();
+}
+
+const isExpired = sessionEndMillis > 0 && Date.now() > sessionEndMillis;
+
+  const title = isExpired ? `${session.name} Results` : session.name;
+  const createdAtDate = session.createdAt?.seconds
+    ? new Date(session.createdAt.seconds * 1000).toLocaleDateString()
+    : "Date unavailable";
+  const voteCount = session.votes ? Object.keys(session.votes).length : 0;
+
+  return (
+    <View
+      key={session.id}
+      style={[
+        styles.votingSessionItem,
+        { borderLeftColor: isExpired ? '#f44336' : '#4caf50' } // 🔴 Red if expired, 🟢 Green if active
+      ]}
+    >
+      <View style={styles.votingSessionContent}>
+        <Text style={styles.votingSessionTitle}>{title}</Text>
+        <Text style={styles.votingSessionDate}>{createdAtDate}</Text>
+        <Text style={styles.votingSessionDescription}>
+          {session.description || "No description"}
+        </Text>
+        <Text style={styles.participantsText}>{voteCount} votes cast</Text>
+      </View>
+      <TouchableOpacity
+        style={styles.votingSessionButton}
+        onPress={() => {
+          if (isExpired) {
+            router.push(`/results/${session.id}`);
+          } else {
+            router.push({
+              pathname: '/(tabs)/swipe',
+              params: { sessionId: session.id, groupId },
+            });
+          }
+        }}
+      >
+        <Ionicons name="chevron-forward" size={20} color="#3f51b5" />
+      </TouchableOpacity>
+    </View>
+  );
+})}
+
+</View>
+
+    )}
+  </View>
+
+                {/** Leave Group */}
+                {!isCreator && (
+                    <TouchableOpacity style={styles.leaveButton} onPress={handleLeaveGroup}>
+                        <Ionicons name="exit-outline" size={20} color="#fff" />
+                        <Text style={styles.leaveButtonText}>Leave Group</Text>
+                    </TouchableOpacity>
+                )}
+            </ScrollView>
+
+            {/**User Search Modal */}
+            <UserSearchModal
+                visible={isAddMemberModalVisible}
+                onClose={() => setIsAddMemberModalVisible(false)}
+                onAddUser={async(userIds) =>{
+                    await handleAddUsers(userIds);
+                    setIsAddMemberModalVisible(false);
+                }}
+                currentMembers={members.map(member=>member.id)}
+                groupId={groupId}
+            />
+
+            {/** TMDB List Generator Modal */}
+            <TMDBListGenerator
+                visible={isTMDBModalVisible}
+                onClose={() => setIsTMDBModalVisible(false)}
+                onListCreated={handleTMDBListCreated}
+                groupId={groupId}
+            />
+
+            {/** Voting Session Modal */}
+            <VotingSessionModal
+            visible={isVotingSessionModalVisible}
+            onClose={() => setIsVotingSessionModalVisible(false)}
+            onSessionCreated={handleVotingSessionCreated}
+            onShowTMDBGenerator={() => {
+                setIsVotingSessionModalVisible(false);
+                setIsTMDBModalVisible(true);
+            }}
+            onShowPlacesGenerator={() => {
+                setIsVotingSessionModalVisible(false); // Hide voting modal
+                setIsPlacesModalVisible(true);         // Show Places modal
+            }}
+            groupId={groupId}
+            />
+            <PlacesListGenerator
+            visible={isPlacesModalVisible}
+            onClose={() => setIsPlacesModalVisible(false)}
+            groupId={groupId}
+            onListCreated={async (newList) => {
+                await fetchGroupData();
+                setIsPlacesModalVisible(false);
+                console.log("Success. Places list created");
+            }}
+            />
+
+        </SafeAreaView>
     );
   }
  

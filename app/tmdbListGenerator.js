@@ -293,7 +293,7 @@ const TMDBListGenerator = ({visible, onClose, groupId, onListCreated}) => {
                         onPress={() => setShowAdvancedOptions(!showAdvancedOptions)}
                         disabled={isGenerating}
                     >
-                        <Text style={styles.advancedToggleText}>Advanced Options</Text>
+                        <Text style={styles.advancedToggleText}>{showAdvancedOptions ? "Hide" : "Show"} Advanced Options</Text>
                         <Ionicons
                             name={showAdvancedOptions ? "chevron-up" : "chevron-down"}
                             size={20}
@@ -379,6 +379,7 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#f5f5f5',
+        padding: 16,
     },
     header: {
         flexDirection: 'row',
@@ -486,10 +487,9 @@ const styles = StyleSheet.create({
     },
     advancedToggle: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
+        justifyContent: 'center',
         alignItems: 'center',
         padding: 12,
-        backgroundColor: '#fff',
         borderRadius: 8,
         marginBottom: 16,
     },
