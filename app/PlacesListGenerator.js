@@ -182,168 +182,197 @@ const PlaceListGenerator = ({ visible, onClose, groupId, onListCreated }) => {
     if (onListCreated) onListCreated(newList);
 
     // Pre-fill session context just like TMDBListGenerator
-    setSelectedGroupId(groupId);
-    setSessionName(`${newList.title} Voting`);
-    setStartTime(new Date().toISOString());
-    setEndTime(new Date(Date.now() + 15 * 60000).toISOString());
-    activityItems.forEach(addActivity);
+    //setSelectedGroupId(groupId);
+    //setSessionName(`${newList.title} Voting`);
+    //setStartTime(new Date().toISOString());
+    //setEndTime(new Date(Date.now() + 15 * 60000).toISOString());
+   // activityItems.forEach(addActivity);
 
    InteractionManager.runAfterInteractions(() => {
-  router.push({
-    pathname: '/createVoteSession',
-    params: {
-      listId: list.id,
-      listType: 'userLists'
-    }
-  });
-  onClose(); // Only close the modal after navigation begins
-});
-
-    onClose();
-  } else {
-    Alert.alert("Error", result.error || "Failed to create list.");
+      router.push({
+        pathname: '/createVoteSession',
+        params: {
+          listId: newList.id,
+          listType: 'user',
+          groupId: groupId,
+          listTitle: newList.title
+        }
+      });
+      onClose(); // Only close the modal after navigation begins
+      });
+  }else{
+    Alert.alert("Error", result.error || "Failed to create google api list");
   }
 };
 
 
   return (
-    <Modal visible={visible} animationType="slide">
-      <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
+    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={handleSave}>
+      <SafeAreaView style={styles.safeArea}>
         <KeyboardAvoidingView
-          style={{ flex: 1 }}
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
-          keyboardVerticalOffset={Platform.OS === "ios" ? 80 : 0}
+          style={styles.keyboardAvoidingView}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
         >
-          <ScrollView contentContainerStyle={styles.container}>
+          <View style={styles.container}>
             <View style={styles.header}>
-              <Text style={styles.title}>Generate Places List</Text>
-              <TouchableOpacity onPress={onClose}>
-                <Ionicons name="close" size={24} color="#666" />
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.section}>
-              <Text style={styles.label}>List Title</Text>
-              <TextInput
-                style={styles.input}
-                value={listTitle}
-                onChangeText={setListTitle}
-                placeholder="e.g., Saturday Hangouts"
-              />
-            </View>
-
-            <View style={styles.section}>
-              <Text style={styles.label}>Search Location</Text>
-              <TextInput
-                style={styles.input}
-                value={query}
-                onChangeText={handleAutocomplete}
-                placeholder="Start typing a place..."
-              />
-              {suggestions.map((s) => (
-                <TouchableOpacity key={s.place_id} onPress={() => handleSelectPrediction(s)}>
-                  <Text style={styles.suggestion}>{s.description}</Text>
+                <Text style={styles.title}>Generate Places List</Text>
+                <TouchableOpacity onPress={onClose}>
+                  <Ionicons name="close" size={24} color="#666" />
                 </TouchableOpacity>
-              ))}
             </View>
 
-            <View style={styles.section}>
-              <Text style={styles.label}>Place Types</Text>
-              <View style={styles.inlineOptions}>
-                {PLACE_TYPES.map((t) => (
-                  <TouchableOpacity
-                    key={t.value}
-                    onPress={() => togglePlaceType(t.value)}
-                    style={[styles.option, placeTypes.has(t.value) && styles.optionSelected]}
-                  >
-                    <Text style={placeTypes.has(t.value) && styles.optionTextSelected}>{t.label}</Text>
+            <ScrollView 
+              style={styles.scrollView}
+              contentContainerStyle={styles.scrollContent}
+              showsVerticalScrollIndicator={true}
+              keyboardShouldPersistTaps="handled"
+            >
+              <View style={styles.section}>
+                <Text style={styles.label}>List Title</Text>
+                <TextInput
+                  style={styles.input}
+                  value={listTitle}
+                  onChangeText={setListTitle}
+                  placeholder="e.g., Saturday Hangouts"
+                />
+              </View>
+
+              <View style={styles.section}>
+                <Text style={styles.label}>Search Location</Text>
+                <TextInput
+                  style={styles.input}
+                  value={query}
+                  onChangeText={handleAutocomplete}
+                  placeholder="Start typing a place..."
+                />
+                {suggestions.map((s) => (
+                  <TouchableOpacity key={s.place_id} onPress={() => handleSelectPrediction(s)}>
+                    <Text style={styles.suggestion}>{s.description}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
-            </View>
 
-            <View style={styles.section}>
-              <Text style={styles.label}>Number of Items</Text>
-              <View style={styles.counterRow}>
-                <TouchableOpacity onPress={() => setLimit(Math.max(1, limit - 1))}>
-                  <Ionicons name="remove" size={20} />
-                </TouchableOpacity>
-                <Text style={styles.counterText}>{limit}</Text>
-                <TouchableOpacity onPress={() => setLimit(limit + 1)}>
-                  <Ionicons name="add" size={20} />
-                </TouchableOpacity>
+              <View style={styles.section}>
+                <Text style={styles.label}>Place Types</Text>
+                <View style={styles.inlineOptions}>
+                  {PLACE_TYPES.map((t) => (
+                    <TouchableOpacity
+                      key={t.value}
+                      onPress={() => togglePlaceType(t.value)}
+                      style={[styles.option, placeTypes.has(t.value) && styles.optionSelected]}
+                    >
+                      <Text style={placeTypes.has(t.value) && styles.optionTextSelected}>{t.label}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
               </View>
-            </View>
 
-            <TouchableOpacity onPress={() => setAdvancedVisible(!advancedVisible)}>
-              <Text style={styles.advancedToggle}>
-                {advancedVisible ? "Hide" : "Show"} Advanced Options
-              </Text>
-            </TouchableOpacity>
-
-            {advancedVisible && (
-              <>
-                <View style={styles.section}>
-                  <Text style={styles.label}>Sort By</Text>
-                  <View style={styles.inlineOptions}>
-                    {SORT_OPTIONS.map((opt) => (
-                      <TouchableOpacity
-                        key={opt.value}
-                        onPress={() => setSortBy(opt.value)}
-                        style={[styles.option, sortBy === opt.value && styles.optionSelected]}
-                      >
-                        <Text style={sortBy === opt.value && styles.optionTextSelected}>
-                          {opt.label}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
+              <View style={styles.section}>
+                <Text style={styles.label}>Number of Items</Text>
+                <View style={styles.counterRow}>
+                  <TouchableOpacity 
+                    style={styles.counterButton}
+                    onPress={() => setLimit(Math.max(1, limit - 1))}
+                  >
+                    <Ionicons name="remove" size={20} color="#3f51b5" />
+                  </TouchableOpacity>
+                  <Text style={styles.counterText}>{limit}</Text>
+                  <TouchableOpacity 
+                    style={styles.counterButton}
+                    onPress={() => setLimit(limit + 1)}
+                  >
+                    <Ionicons name="add" size={20} color="#3f51b5" />
+                  </TouchableOpacity>
                 </View>
+              </View>
 
-                <View style={styles.section}>
-                  <Text style={styles.label}>Price Levels</Text>
-                  <View style={styles.inlineOptions}>
-                    {PRICE_LEVELS.map((lvl) => (
-                      <TouchableOpacity
-                        key={lvl}
-                        onPress={() => togglePrice(lvl)}
-                        style={[styles.option, priceFilter.has(lvl) && styles.optionSelected]}
-                      >
-                        <Text style={priceFilter.has(lvl) && styles.optionTextSelected}>
-                          {"$".repeat(lvl + 1)}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
+              <TouchableOpacity 
+                style={styles.advanced}
+                onPress={() => setAdvancedVisible(!advancedVisible)}
+              >
+                <Text style={styles.advancedToggle}>
+                  {advancedVisible ? "Hide" : "Show"} Advanced Options
+                </Text>
+                <Ionicons 
+                  name={advancedVisible ? "chevron-up" : "chevron-down"}
+                  size={20}
+                  color="#3f51b5"
+                  style={{marginLeft: 6, marginTop: 2}}
+
+                />
+              </TouchableOpacity>
+
+              {advancedVisible && (
+                <>
+                  <View style={styles.section}>
+                    <Text style={styles.label}>Sort By</Text>
+                    <View style={styles.inlineOptions}>
+                      {SORT_OPTIONS.map((opt) => (
+                        <TouchableOpacity
+                          key={opt.value}
+                          onPress={() => setSortBy(opt.value)}
+                          style={[styles.option, sortBy === opt.value && styles.optionSelected]}
+                        >
+                          <Text style={sortBy === opt.value && styles.optionTextSelected}>
+                            {opt.label}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
                   </View>
-                </View>
-              </>
-            )}
 
-            <TouchableOpacity
-              style={styles.generateButton}
-              onPress={handleGenerate}
-              disabled={loading}
-            >
-              {loading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.generateButtonText}>Generate</Text>
+                  <View style={styles.section}>
+                    <Text style={styles.label}>Price Levels</Text>
+                    <View style={styles.inlineOptions}>
+                      {PRICE_LEVELS.map((lvl) => (
+                        <TouchableOpacity
+                          key={lvl}
+                          onPress={() => togglePrice(lvl)}
+                          style={[styles.option, priceFilter.has(lvl) && styles.optionSelected]}
+                        >
+                          <Text style={priceFilter.has(lvl) && styles.optionTextSelected}>
+                            {"$".repeat(lvl + 1)}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+                </>
               )}
-            </TouchableOpacity>
 
-            {places.length > 0 &&
-              places.map((p, i) => (
-                <View key={i} style={styles.placeCard}>
-                  <Text style={styles.placeTitle}>{p.title}</Text>
-                  <Text>{p.address}</Text>
-                  <Text>Rating: {p.rating}</Text>
+                <View style={styles.footer}>
+                    <TouchableOpacity
+                        style={[styles.generateButton, loading && styles.generateButtonDisabled]}
+                        onPress={handleGenerate}
+                        disabled={loading}
+                    >
+                        {loading ? (
+                            <ActivityIndicator size="small" color="#fff" />
+                        ) : (
+                            <Ionicons name="list" size={20} color="#fff" />
+                        )}
+                        <Text style={styles.generateButtonText}>
+                            {loading ? 'Generating ...' : 'Generate'}
+                        </Text>
+                    </TouchableOpacity>
                 </View>
-              ))}
 
-            <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-              <Text style={styles.saveButtonText}>Save List</Text>
-            </TouchableOpacity>
-          </ScrollView>
+                {places.length > 0 &&
+                  places.map((p, i) => (
+                    <View key={i} style={styles.placeCard}>
+                      <Text style={styles.placeTitle}>{p.title}</Text>
+                      <Text>{p.address}</Text>
+                      <Text>Rating: {p.rating}</Text>
+                    </View>
+                  ))}
+
+                <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
+                  <Ionicons name="checkbox" size={20} color="#fff" />
+                  <Text style={styles.saveButtonText}>Save List</Text>
+                </TouchableOpacity>
+            </ScrollView>
+          </View>
         </KeyboardAvoidingView>
       </SafeAreaView>
     </Modal>
@@ -351,64 +380,160 @@ const PlaceListGenerator = ({ visible, onClose, groupId, onListCreated }) => {
 };
 
 const styles = StyleSheet.create({
-  container: { backgroundColor: "#fff", padding: 16 },
-  header: { flexDirection: "row", justifyContent: "space-between", marginBottom: 16 },
-  title: { fontSize: 20, fontWeight: "bold" },
-  section: { marginBottom: 20 },
-  label: { fontSize: 16, fontWeight: "600", marginBottom: 8 },
+  container:{
+    flex: 1,
+    backgroundColor: '#f5f5f5',
+    padding: 16,
+  },
+  safeArea:{
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  keyboardAvoidingView:{
+    flex: 1,
+  },
+  header: { 
+    flexDirection: "row", 
+    justifyContent: "space-between", 
+    alignItems: 'center',
+    padding: 16,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  title: { 
+    fontSize: 20, 
+    fontWeight: "bold" 
+  },
+  scrollView:{
+    flex: 1,
+    backgroundColor: '#f5f5f5',
+  },
+  scrollContent:{
+    padding: 16,
+    paddingBottom: 40,
+  },
+  section: { 
+    marginBottom: 20 
+  },
+  label: { 
+    fontSize: 18, 
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 8 
+  },
   input: {
     borderWidth: 1,
-    borderColor: "#ccc",
+    borderColor: "#ddd",
     borderRadius: 8,
-    padding: 10,
+    padding: 12,
+    fontSize: 16,
+    backgroundColor: '#fff',
   },
-  suggestion: { padding: 8, backgroundColor: "#f0f0f0", marginBottom: 4 },
-  inlineOptions: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  suggestion: { 
+    padding: 8, 
+    backgroundColor: "#f0f0f0", 
+    marginBottom: 4 
+  },
+  inlineOptions: { 
+    flexDirection: "row", 
+    flexWrap: "wrap", 
+    gap: 8 
+  },
   option: {
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderWidth: 1,
     borderRadius: 20,
-    borderColor: "#ccc",
-    marginRight: 8,
-    marginBottom: 8,
+    borderColor: "#ddd",
+    backgroundColor: '#fff',
   },
   optionSelected: {
     backgroundColor: "#3f51b5",
     borderColor: "#3f51b5",
   },
-  optionTextSelected: { color: "#fff", fontWeight: "600" },
-  counterRow: { flexDirection: "row", alignItems: "center", gap: 12 },
-  counterText: { fontSize: 16, fontWeight: "bold" },
+  optionTextSelected: { 
+    color: "#fff", 
+    fontWeight: "600" 
+  },
+  counterRow: { 
+    flexDirection: "row", 
+    alignItems: "center", 
+    justifyContent: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    padding: 12, 
+  },
+  counterButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#f0f0f0',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  counterText: { 
+    fontSize: 18, 
+    fontWeight: "bold" ,
+    marginHorizontal: 20,
+    color: '#333',
+  },
   advancedToggle: {
     color: "#3f51b5",
-    fontWeight: "600",
-    textAlign: "center",
+    fontWeight: '600',
     marginBottom: 16,
+    fontSize: 16,
+    paddingRight: 12,
   },
   generateButton: {
-    backgroundColor: "#3f51b5",
-    padding: 14,
+    backgroundColor: '#3f51b5',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
     borderRadius: 8,
-    alignItems: "center",
-    marginBottom: 16,
   },
-  generateButtonText: { color: "#fff", fontWeight: "bold" },
+  generateButtonDisabled:{
+    opacity: 0.7,
+  },
+  generateButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginLeft: 8,
+  },
   saveButton: {
     backgroundColor: "#4CAF50",
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     padding: 14,
     borderRadius: 8,
-    alignItems: "center",
     marginVertical: 20,
   },
-  saveButtonText: { color: "#fff", fontWeight: "bold" },
+  saveButtonText: { 
+    color: "#fff", 
+    fontWeight: "bold",
+    fontSize: 16,
+    marginLeft: 8,
+  },
   placeCard: {
     backgroundColor: "#f5f5f5",
     padding: 12,
     borderRadius: 8,
     marginTop: 10,
   },
-  placeTitle: { fontWeight: "bold", fontSize: 16 },
+  placeTitle: { 
+    fontWeight: "bold", 
+    fontSize: 16 
+  },
+  advanced:{
+    flexDirection: 'row',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+    justifyContent: 'center',
+  },
 });
 
 export default PlaceListGenerator;
