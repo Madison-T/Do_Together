@@ -180,13 +180,16 @@ const PlaceListGenerator = ({ visible, onClose, groupId, onListCreated }) => {
       throw new Error("You must be logged in to make a custom list");
     }
 
-    const result = await createList(listTitle.trim(), activityItems);;
+    const result = await createList(listTitle.trim(), activityItems, {
+      category: 'restaurants'
+    });
 
     if (result.success) {
       const newList = {
         id: result.id,
         title: listTitle.trim(),
-        activities: activityItems
+        activities: activityItems,
+        category: 'restaurants'
       };
 
       if (onListCreated) onListCreated(newList);

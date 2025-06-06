@@ -10,14 +10,36 @@ import {
   getDocs,
   query,
   updateDoc,
-  where
+  where,
+  writeBatch
 } from 'firebase/firestore';
 import { createContext, useContext, useEffect, useState } from 'react';
 import { auth, firestore } from '../firebaseConfig';
 
 import { ProviderNames } from '../hooks/useMovieAPI';
 
-
+export const listCategories = [
+  {id: 'movies', name: 'Movies', icon: 'film-outline', color: '#e91e63'},
+  {id: 'tv-shows', name: 'TV Shows', icon: 'tv-outline', color: '#9c27b0'},
+  {id: 'restaurants', name: 'Restaurants', icon: 'restaurant-outline', color: '#ff5722'},
+  {id: 'books', name: 'Books', icon: 'book-outline', color: '#795548'},
+  {id: 'music', name: 'Music', icon: 'musical-notes-outline', color: '#607d8b'},
+  {id: 'food', name: 'Food & Recipes', icon: 'pizza-outline', color: '#ff9800'},
+  {id: 'games', name: 'Games', icon: 'game-controller-outline', color: '#4caf50'},
+  {id: 'shopping', name: 'Shopping', icon: 'bag-handle-outline', color: '#f9e4bc'},
+  {id: 'travel', name: 'Travel', icon: 'airplane-outline', color: '#d3cac8'},
+  {id: 'sports', name: 'Sport', icon: 'basketball-outline', color: '#ee6730'},
+  {id: 'outdoor', name: 'Outdoor', icon: 'flower-outline', color: '#3c6b36'},
+  {id: 'board-game', name: 'Board Games', icon: 'dice-outline', color: '#3056c1'},
+  {id: 'art', name: 'Art', icon: 'color-palette-outline', color: '#371F76'},
+  {id: 'nature', name: 'Nature', icon: 'leaf-outline', color: '#169128'},
+  {id: 'summer', name: 'Summer', icon: 'sunny-outline', color: '#F3c515'},
+  {id: 'winter', name: 'Winter', icon: 'snow-outline', color: '#B7F5F4'},
+  {id: 'motorsport', name: 'Motorsport & Cars', icon: 'speedometer-outline', color: '#EF1A2D'},
+  {id: 'events-festivals', name: 'Events & Festivals', icon: 'ticket-outline', color: '#f45165'},
+  {id: 'hiking', name: 'Hiking', icon: 'trail-sign-outline', color: '#1e8f65'},
+  {id: 'other', name: 'Other', icon: 'ellipsis-horizontal-outline', color: '#9e9e9e'}
+];
 
 // Create the context
 const UserListsContext = createContext();
@@ -39,17 +61,62 @@ export const UserListsProvider = ({ children }) => {
   const [listLoading, setListLoading] = useState(false);
   const [listError, setListError] = useState(null);
 
+  const [defaultCategoryAssigned, setDefaultCategoryAssigned] = useState(false);
+
   useEffect(() => {
-    const loadInitialData = async () => {
-      if (auth.currentUser) {
+    const unsubscribe = auth.onAuthStateChanged((user)=>{
+      if(user){
         loadUserLists();
-      } else {
+      }else{
         setUserLists([]);
         setLoading(false);
+        setDefaultCategoryAssigned(false);
       }
-    };
-    loadInitialData();
-  }, [auth.currentUser]);
+    });
+    
+    return () => unsubscribe();
+  }, []);
+
+  const assignDefaultCategory = async(lists) => {
+    if(!auth.currentUser || defaultCategoryAssigned){
+      return lists;
+    }
+
+    console.log("Checking for lists without categories");
+    const batch = writeBatch(firestore);
+    let listsUpdatedInBatch = false;
+    let updatedLists = [...lists];
+
+    for(let i = 0; i < updatedLists.length; i++){
+      const list = updatedLists[i];
+      const collectionName = list.listType === 'tmdb_watchlist' ? 'TMDBLists' : 'userLists';
+      const listDocRef = doc(firestore, collectionName, list.id);
+
+      //Check if category field is missing or nul
+      if(list.category === undefined || list.category === null){
+        console.log(`Assigning other category to list: ${list.title} (${list.id})`);
+        batch.update(listDocRef, {category: 'other'});
+        updatedLists[i] = {...list, category: 'other'}; //update local copy
+        listsUpdatedInBatch = true;
+      }
+    }
+
+    if(listsUpdatedInBatch){
+      try{
+        await batch.commit();
+        console.log("Batch update for default categories committed");
+        setDefaultCategoryAssigned(true);
+        return updatedLists;
+      }catch(error){
+        console.error("Error commiting batch for default categories:", error);
+        return lists;
+      }
+    }else{
+      console.log("No lists found without categories to update");
+      setDefaultCategoryAssigned(true);
+      return lists;
+    }
+  };
 
   const loadUserLists = async () => {
     try {
@@ -113,7 +180,9 @@ export const UserListsProvider = ({ children }) => {
       const tmdbLists = await Promise.all(tmdbListPromises);
       lists.push(...tmdbLists);
 
-      setUserLists(lists);
+      const listsAfterDefaultCategory = await assignDefaultCategory(lists);
+
+      setUserLists(listsAfterDefaultCategory);
     } catch (error) {
       console.error('Failed to load user lists:', error);
     } finally {
@@ -147,6 +216,10 @@ export const UserListsProvider = ({ children }) => {
         id: listSnap.id,
         ...listSnap.data()
       };
+
+      if(listData.category === undefined || listData.category === null){
+        listData.category = 'other';
+      }
 
       // Fetch TMDB activities separately if it's a TMDB list
       if (listData.listType === 'tmdb_watchlist') {
@@ -369,7 +442,7 @@ export const UserListsProvider = ({ children }) => {
     return !snapshot1.empty || !snapshot2.empty;
   };
 
-  const createList = async (title, activities) => {
+  const createList = async (title, activities, category = null) => {
     try {
       if (!auth.currentUser) {
         throw new Error('You must be logged in to create a list');
@@ -420,6 +493,7 @@ export const UserListsProvider = ({ children }) => {
       const listData = {
         title: title.trim(),
         activities: processedActivities,
+        category: category || 'other',
         userId: auth.currentUser.uid,
         createdAt: new Date(),
         listType: 'regular'
@@ -444,10 +518,12 @@ export const UserListsProvider = ({ children }) => {
   try {
     let docRef = doc(firestore, 'userLists', id);
     let docSnap = await getDoc(docRef);
+    let listCollection = 'userLists';
 
     if (!docSnap.exists()) {
       docRef = doc(firestore, 'TMDBLists', id);
       docSnap = await getDoc(docRef);
+      listCollection = 'TMDBLists';
     }
 
     if (docSnap.exists()) {
@@ -469,6 +545,8 @@ export const UserListsProvider = ({ children }) => {
         id: docSnap.id,
         ...data,
         activities,
+        listType: listCollection === 'TMDBLists' ? 'tmdb_watchlist' : 'regular',
+        category: data.category === undefined || data.category === null ? 'other' : data.category
       };
     } else {
       return null;
@@ -498,6 +576,15 @@ export const UserListsProvider = ({ children }) => {
         throw new Error('Invalid content format');
       }
 
+      let category = 'other';
+      if(options.includeMovies && !options.includeTVShows){
+        category = 'movies';
+      }else if(options.includeTVShows && !options.includeMovies){
+        category = 'tv-shows';
+      }else{
+        category = 'movies';
+      }
+
       const listData = {
         title: title.trim(),
         description: options.description || '',
@@ -516,7 +603,8 @@ export const UserListsProvider = ({ children }) => {
           genres: options.genres || []
         },
         tmdbContent: tmdbContent,
-        generatedAt: new Date()
+        generatedAt: new Date(),
+        category: category
       };
 
       const result = await tmdbCreateList({
@@ -582,6 +670,41 @@ export const UserListsProvider = ({ children }) => {
     }
   };
 
+  const updateListCategory = async(listId, newCategory, listType) => {
+    try{
+      let collectionName = '';
+      if(listType === 'tmdb_watchlist'){
+        collectionName = 'TMDBLists';
+      }else{
+        collectionName = 'userLists';
+      }
+
+      const listRef = doc(firestore, collectionName, listId);
+      await updateDoc(listRef, {
+        category: newCategory
+      });
+
+      //Update local state
+      setCurrentList(prev => {
+        if(prev && prev.id === listId){
+          return {...prev, category: newCategory};
+        }
+        return prev;
+      });
+
+      //update userLists state
+      setUserLists(prevLists => 
+        prevLists.map(list => 
+          list.id === listId ? {...list, category: newCategory} : list
+        )
+      );;
+      return {success: true}
+    }catch(error){
+      console.error('Error updating list category:', error);
+      return {success: false, error: 'Failed to update list category'};
+    }
+  };
+
   const value = {
     userLists,
     loading,
@@ -596,7 +719,8 @@ export const UserListsProvider = ({ children }) => {
     loadListDetails,
     addActivity,
     removeActivity,
-    getUserListById
+    getUserListById,
+    updateListCategory
   };
 
   return (

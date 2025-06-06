@@ -6,14 +6,16 @@ import {
     Alert,
     FlatList,
     KeyboardAvoidingView,
+    Modal,
     Platform,
+    Pressable,
     StyleSheet,
     Text,
     TextInput,
     TouchableOpacity,
     View
 } from 'react-native';
-import { useUserLists } from '../contexts/UserListsContext';
+import { listCategories, useUserLists } from '../contexts/UserListsContext';
 import { auth } from '../firebaseConfig';
 
 export default function ListDetailsScreen() {
@@ -26,12 +28,14 @@ export default function ListDetailsScreen() {
         listError,
         loadListDetails,
         addActivity,
-        removeActivity
+        removeActivity,
+        updateListCategory
     } = useUserLists();
 
     const [newActivity, setNewActivity] = useState('');
     const [isAdding, setIsAdding] = useState(false);
     const [errorMessage, setErrorMessage] = useState('');
+    const [showCategoryModal, setShowCategoryModal] = useState(false);
 
     useEffect(() => {
         loadListData();
@@ -116,6 +120,22 @@ export default function ListDetailsScreen() {
         });
     };
 
+    const handleCategorySelect = async(category) => {
+        if(currentList && currentList.category !== category.id){
+            const result = await updateListCategory(listId, category.id, currentList.listType);
+            if(result.success){
+                console.log('Success. List category updated');
+            }else{
+                console.log('Error. Failed to update category');
+            }
+        }
+        setShowCategoryModal(false);
+    };
+
+    const currentCategory = listCategories.find(
+        cat => cat.id === currentList?.category
+    );
+
     const renderActivity = ({ item, index }) => (
   <View style={styles.activityItem} key={index}>
     <Text style={styles.activityText}>
@@ -169,6 +189,18 @@ export default function ListDetailsScreen() {
         >
             <View style={styles.header}>
                 <Text style={styles.title}>{currentList.title}</Text>
+
+                {/** Activity category */}
+                <TouchableOpacity
+                    onPress={() => setShowCategoryModal(true)}
+                    style={[styles.categoryIconContainer, {backgroundColor: currentCategory.color}]}
+                >
+                    <Ionicons
+                        name={currentCategory.icon}
+                        size={24}
+                        color='#fff'
+                    />
+                </TouchableOpacity>
             </View>
 
             <Text style={styles.sectionTitle}>
@@ -238,6 +270,46 @@ export default function ListDetailsScreen() {
                     </Text>
                 )}
             </TouchableOpacity>
+
+            {/** Category Modal */}
+            <Modal  
+                animationType='slide'
+                transparent={true}
+                visible={showCategoryModal}
+                onRequestClose={() => setShowCategoryModal(false)}
+            >
+                <Pressable
+                    style={styles.modalOverlay}
+                    onPress={()=> setShowCategoryModal(false)}
+                >
+                    <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
+                        <Text style={styles.modalTitle}>Change List Category</Text>
+                        <FlatList
+                            data={listCategories}
+                            keyExtractor={(item) => item.id}
+                            renderItem={({item}) => (
+                                <TouchableOpacity
+                                    style={styles.categoryOption}
+                                    onPress={() => handleCategorySelect(item)}
+                                >
+                                    <Ionicons name={item.icon} size={20} color={item.color} style={styles.categoryOptionIcon} />
+                                    <Text style={styles.categoryOptionText}>{item.name}</Text>
+                                    {currentList?.category === item.id && (
+                                        <Ionicons name={'checkmark-circle'} size={20} color="#4CAF50" />
+                                    )}
+                                </TouchableOpacity>
+                            )}
+                        />
+                        <TouchableOpacity
+                            style={styles.modalCloseButton}
+                            onPress={() => setShowCategoryModal(false)}
+                        >
+                            <Text style={styles.modalCloseButtonText}>Cancel</Text>
+                        </TouchableOpacity>
+                    </View>
+                </Pressable>
+            </Modal>
+
         </KeyboardAvoidingView>
     );
 }
@@ -283,6 +355,7 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         color: '#3f51b5',
         flex: 1,
+        marginRight: 10,
     },
     sectionTitle: {
         fontSize: 18,
@@ -398,5 +471,70 @@ const styles = StyleSheet.create({
         fontSize: 12,
         fontStyle: 'italic',
         marginTop: 4,
+    },
+    categoryIconContainer: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginLeft: 10,
+        shadowColor: '#000',
+        shadowOffset: {width: 0, height: 2},
+        shadowOpacity: 0.2,
+        shadowRadius: 3,
+        elevation: 5,
+    },
+    modalOverlay:{
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: 'rgba(0,0,0,0.5)',
+    },
+    modalContent: {
+        backgroundColor: 'white',
+        borderRadius: 10,
+        padding: 20,
+        width: '80%',
+        maxHeight: '70%',
+        shadowColor: '#000',
+        shadowOffset: {width: 0, height: 2},
+        shadowOpacity: -.25,
+        shadowRadius: 4,
+        elevation: 5,
+    },
+    modalTitle: {
+        fontSize: 20,
+        fontWeight: 'bold',
+        marginBottom: 20,
+        textAlign: 'center',
+        color: '#35f1b5',
+    },
+    categoryOption: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 12,
+        borderBottomWidth: 1,
+        borderBottomColor: '#eee',
+    },
+    categoryOptionIcon:{
+        marginRight: 10,
+    },
+    categoryOptionText:{
+        flex: 1,
+        fontSize: 16,
+        color: '#333',
+    },
+    modalCloseButton: {
+        marginTop: 20,
+        padding: 12,
+        backgroundColor: '#f44336',
+        borderRadius: 8,
+        alignItems: 'center',
+    },
+    modalCloseButtonText: {
+        color: 'white',
+        fontSize: 16,
+        fontWeight: 'bold',
     },
 });

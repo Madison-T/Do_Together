@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
     Modal,
     ScrollView,
@@ -9,8 +9,8 @@ import {
     TouchableOpacity,
     View
 } from 'react-native';
-import { TextInput } from "react-native-web";
-import { useUserLists } from "../contexts/UserListsContext";
+import { usePresetLists } from '../contexts/PresetListsContext';
+import { listCategories, useUserLists } from "../contexts/UserListsContext";
 import { auth } from '../firebaseConfig';
 import * as FirestoreService from '../hooks/useFirestore';
 
@@ -27,101 +27,72 @@ const VotingSessionModal = ({visible, onClose, onSessionCreated, onShowTMDBGener
     const [numberOfCards, setNumberOfCards] = useState(5);
     const [selectedItems, setSelectedItems] = useState([]);
 
-    const {userLists} = useUserLists();
-
-    const listCategories = [
-        {id: 'movies', name: 'Movies', icon: 'film-outline', color: '#e91e63'},
-        {id: 'tv-shows', name: 'TV Shows', icon: 'tv-outline', color: '#9c27b0'},
-        {id: 'restaurants', name: 'Restaurants', icon: 'restaurant-outline', color: '#ff5722'},
-        {id: 'books', name: 'Books', icon: 'book-outline', color: '#795548'},
-        {id: 'music', name: 'Music', icon: 'musical-notes-outline', color: '#607d8b'},
-        {id: 'food', name: 'Food & Recipes', icon: 'pizza-outline', color: '#ff9800'},
-        {id: 'games', name: 'Games', icon: 'game-controller-outline', color: '#4caf50'},
-        {id: 'shopping', name: 'Shopping', icon: 'bag-outline', color: '#f44336'}
-    ];
-
-    const sampleGenericLists = {
-        movies: [
-            { id: 'top-action-movies', name: 'Top Action Movies 2024', description: 'Best action movies of the year' },
-            { id: 'romantic-comedies', name: 'Best Romantic Comedies', description: 'Feel-good romantic movies' },
-            { id: 'sci-fi-classics', name: 'Sci-Fi Classics', description: 'Must-watch science fiction films' }
-        ],
-        'tv-shows': [
-            { id: 'trending-series', name: 'Trending TV Series', description: 'Currently popular shows' },
-            { id: 'comedy-series', name: 'Comedy Series to Binge', description: 'Hilarious TV shows' },
-            { id: 'drama-series', name: 'Award-Winning Dramas', description: 'Critically acclaimed dramas' }
-        ],
-        restaurants: [
-            { id: 'local-favorites', name: 'Local Favorites', description: 'Popular restaurants in your area' },
-            { id: 'date-night-spots', name: 'Date Night Restaurants', description: 'Perfect for romantic dinners' },
-            { id: 'family-friendly', name: 'Family-Friendly Dining', description: 'Great for kids and families' }
-        ],
-        activities: [
-            { id: 'outdoor-activities', name: 'Outdoor Adventures', description: 'Fun activities for nature lovers' },
-            { id: 'indoor-activities', name: 'Indoor Fun', description: 'Perfect for any weather' },
-            { id: 'group-activities', name: 'Group Activities', description: 'Fun with friends and family' }
-        ],
-        travel: [
-            { id: 'weekend-getaways', name: 'Weekend Getaways', description: 'Short trips near you' },
-            { id: 'bucket-list-destinations', name: 'Bucket List Destinations', description: 'Dream travel spots' },
-            { id: 'budget-travel', name: 'Budget-Friendly Trips', description: 'Amazing places without breaking the bank' }
-        ],
-        books: [
-            { id: 'bestsellers-2024', name: '2024 Bestsellers', description: 'Most popular books this year' },
-            { id: 'classic-literature', name: 'Classic Literature', description: 'Timeless literary works' },
-            { id: 'mystery-thrillers', name: 'Mystery & Thrillers', description: 'Page-turning suspense novels' }
-        ],
-        music: [
-            { id: 'trending-songs', name: 'Trending Songs', description: 'Current chart toppers' },
-            { id: 'chill-playlists', name: 'Chill Vibes', description: 'Relaxing music for any mood' },
-            { id: 'workout-music', name: 'Workout Bangers', description: 'High-energy songs for exercise' }
-        ],
-        food: [
-            { id: 'easy-recipes', name: 'Easy Weeknight Dinners', description: 'Quick and delicious meals' },
-            { id: 'dessert-recipes', name: 'Decadent Desserts', description: 'Sweet treats to try' },
-            { id: 'healthy-meals', name: 'Healthy Meal Ideas', description: 'Nutritious and tasty options' }
-        ],
-        games: [
-            { id: 'party-games', name: 'Party Games', description: 'Fun games for groups' },
-            { id: 'board-games', name: 'Best Board Games', description: 'Top-rated tabletop games' },
-            { id: 'video-games', name: 'Must-Play Video Games', description: 'Gaming recommendations' }
-        ],
-        shopping: [
-            { id: 'fashion-trends', name: 'Fashion Trends 2024', description: 'Current style must-haves' },
-            { id: 'tech-gadgets', name: 'Cool Tech Gadgets', description: 'Latest technology products' },
-            { id: 'home-decor', name: 'Home Decor Ideas', description: 'Beautiful home accessories' }
-        ]
-    };
+    const {userLists = [], tmdbLists = []} = useUserLists();
+    const {presetLists = []} = usePresetLists();
 
     useEffect(()=>{
         if(visible && selectedCategory){
             loadLists();
         }
-    }, [visible, selectedCategory, activeTab]);
+    }, [visible, selectedCategory, loadLists]);
 
-    const loadLists = async () => {
+    const loadLists = useCallback(async () => {
         setLoading(true);
         try{
-            setGenericLists(sampleGenericLists[selectedCategory] || []);
-
-            const filteredPersonalLists = userLists.filter(list => {
-                if(selectedCategory === 'movies' || selectedCategory === 'tv-shows'){
-                    return list.type === 'tmdb' || list.category === selectedCategory;
-                }
-                return list.category === selectedCategory;
+            const filteredPresetLists = presetLists.filter(list => {
+                return selectedCategory && list.category === selectedCategory.id;
             });
+            setGenericLists(filteredPresetLists);
+
+            //Load user's personal lists for the selected categroy
+            let filteredPersonalLists = [];
+
+            const regularLists = userLists.filter(list =>{
+                if(selectedCategory === 'other'){
+                    return !list.category || list.category === 'other';
+                }
+                return list.category === selectedCategory?.id;
+            });
+
+            //Include TMDB lists for movies/tv-shows categories
+            if(selectedCategory?.id === 'movies' || selectedCategory?.id === 'tv-shows'){
+                const relevantTMDBLists = tmdbLists.filter(list => {
+                    if(list.category === selectedCategory.id) return true;
+
+                    if(selectedCategory.id === 'movies' && (list.type === 'movie' || list.contentType === 'movie')) return true;
+                    if(selectedCategory.id === 'tv-shows' && (list.type === 'tv' || list.contentType === 'tv')) return true;
+
+                    if(list.tmdbOptions){
+                        if(selectedCategory.id === 'movies' && list.tmdbOptions.includeMovies) return true;
+                        if(selectedCategory.id === 'tv-shows' && list.tmdbOptions.includeTVShows) return true;
+                    }
+
+                    return false;
+                });
+                filteredPersonalLists = [...regularLists, ...relevantTMDBLists];
+            }else{
+                filteredPersonalLists = regularLists;
+            }
+
             setPersonalLists(filteredPersonalLists);
         }catch(error){
             console.error('Error loading lists:', error);
         }finally{
             setLoading(false);
         }
-    };
+    }, [selectedCategory, userLists, tmdbLists, presetLists]);
 
     const handleListSelect = (list) => {
-        setSelectedList(list);
-        setSessionTitle(`Vote on ${list.name}`);
-        setCurrentView('session');
+        router.push({
+            pathname: '/createVoteSession',
+            params:{
+                listId: list.id,
+                listType: userLists.some(userList => userList.id === list.id) ? 'user' :
+                        tmdbLists.some(tmdbList => tmdbList.id === list.id) ? 'tmdb':
+                        'preset'
+            }
+        });
+        handleClose();
     };
 
     const handleCreateSession = async () => {
@@ -135,11 +106,20 @@ const VotingSessionModal = ({visible, onClose, onSessionCreated, onShowTMDBGener
 
         setLoading(true);
         try{
+            let listType = 'generic';
+            if(userLists.some(userList => userList.id === selectedList.id)){
+                listType = 'personal';
+            }else if(tmdbLists.some(tmdbLists => tmdbLists.id === selectedList.id)){
+                listType = 'tmdb';
+            }else if(presetLists.some(presetLists => presetLists.id === selectedList.id)){
+                listType = 'preset';
+            }
+
             const sessionData = {
                 title: sessionTitle.trim(),
                 description: sessionDescription.trim(),
                 listId: selectedList.id,
-                listType: activeTab,
+                listType: listType,
                 groupId: groupId,
                 createdBy: auth.currentUser?.uid,
                 createdAt: new Date(),
@@ -180,22 +160,13 @@ const VotingSessionModal = ({visible, onClose, onSessionCreated, onShowTMDBGener
 
     const handleCategorySelectWithCards = (category) => {
         setSelectedCategory(category);
-        if(category.id === 'movies' || category.id === 'tv-shows'){
-            onShowTMDBGenerator();
-            return;
-        }
-        if (category.id === 'restaurants') {
-            onShowPlacesGenerator();
-        return;
-        }
-
-        setCurrentView('cardSelection');
+        setCurrentView('lists');
     }
 
     const handleCardNumberSelection = async () =>{
         setLoading(true);
         try{
-            const availableItems = sampleGenericLists[selectedCategory.id] || [];
+            const availableItems = genericLists[selectedCategory.id] || [];
 
             const shuffled = [...availableItems].sort(() => 0.5 - Math.random());
             const selected = shuffled.slice(0, Math.min(numberOfCards, availableItems.length));
@@ -210,6 +181,20 @@ const VotingSessionModal = ({visible, onClose, onSessionCreated, onShowTMDBGener
         }
     };
 
+    const handleGenerateNewList = () => {
+        if(selectedCategory?.id === 'movies' || selectedCategory?.id === 'tv-shows'){
+            onShowTMDBGenerator();
+            return;
+        }
+        if(selectedCategory?.id === 'restaurants'){
+            onShowPlacesGenerator();
+            return;
+        }
+
+        router.push('/createLists');
+        handleClose();
+    }
+
     //render categories
     const renderCategories = () => (
   <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
@@ -218,12 +203,12 @@ const VotingSessionModal = ({visible, onClose, onSessionCreated, onShowTMDBGener
       {/* Create your own list card */}
       <TouchableOpacity
         style={[styles.categoryCard, styles.createListCard]}
-        onPress={() => router.push('Create Lists')}
+        onPress={() => router.push('/createLists')}
         disabled={loading}
       >
         <View style={styles.categoryRow}>
           <View style={[styles.categoryIcon, { backgroundColor: '#4CAF50' }]}>
-            <Ionicons name="add" size={24} color="#fff" />
+            <Ionicons name="create-outline" size={24} color="#fff" />
           </View>
           <Text style={styles.categoryName}>Create List</Text>
         </View>
@@ -257,8 +242,24 @@ const VotingSessionModal = ({visible, onClose, onSessionCreated, onShowTMDBGener
                 <TouchableOpacity onPress={() => setCurrentView('categories')}>
                     <Ionicons name="arrow-back" size={24} color="#3f51b5" />
                 </TouchableOpacity>
-                <Text style={styles.sectionTitle}>{selectedCategory?.name}</Text>
+                <Text style={styles.sectionTitle}>{selectedCategory?.name || 'Select Category'}</Text>
             </View>
+
+            {/** Generate New List Button */}
+            <TouchableOpacity
+                style={styles.generateNewListButton}
+                onPress={handleGenerateNewList}
+            >
+                <View style={styles.generateNewListContent}>
+                    <Ionicons name="add-circle" size={24} color="#4caf50" />
+                    <View style={styles.generateNewListText}>
+                        <Text style={styles.generateNewListTitle}>Generate New List</Text>
+                        <Text style={styles.generateNewListSubtitle}>
+                            Create a new {selectedCategory?.name?.toLowerCase() || ''} list
+                        </Text>
+                    </View>
+                </View>
+            </TouchableOpacity>
 
             <View style={styles.tabContainer}>
                 <TouchableOpacity
@@ -266,7 +267,7 @@ const VotingSessionModal = ({visible, onClose, onSessionCreated, onShowTMDBGener
                     onPress={() => setActiveTab('generic')}
                 >
                     <Text style={[styles.tabText, activeTab === 'generic' && styles.activeTabText]}>
-                        Generic lists
+                        Preset lists
                     </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
@@ -293,12 +294,12 @@ const VotingSessionModal = ({visible, onClose, onSessionCreated, onShowTMDBGener
                                     style={styles.listItem}
                                     onPress={() => handleListSelect(list)}
                                 >
-                                    <Text style={styles.listName}>{list.name}</Text>
-                                    <Text style={styles.listDescription}>{list.description}</Text>
+                                    <Text style={styles.listName}>{list.title}</Text>
+                                    <Text style={styles.listDescription}>{list.description || `${list.activities?.length || list.items?.length || 0} items`}</Text>
                                 </TouchableOpacity>
                             ))
                         ) : (
-                            <Text style={styles.noListsText}>No generic lists available for this category</Text>
+                            <Text style={styles.noListsText}>No preset lists available for this category</Text>
                         )
                     ): (
                         personalLists.length > 0 ? (
@@ -308,12 +309,28 @@ const VotingSessionModal = ({visible, onClose, onSessionCreated, onShowTMDBGener
                                     style={styles.listItem}
                                     onPress={() => handleListSelect(list)}
                                 >
-                                    <Text style={styles.listName}>{list.name}</Text>
-                                    <Text style={styles.listDescription}>{list.description || 'Personal list'}</Text>
+                                    <Text style={styles.listName}>{list.title}</Text>
+                                    <Text style={styles.listDescription}>
+                                        {list.description ||
+                                            `${list.activities?.length || list.items?.length || 0} items` +
+                                            (list.type === 'tmdb' ? ' • TMDB Generated' : '')
+                                        }
+                                    </Text>
                                 </TouchableOpacity>
                             ))
                         ) : (
-                            <Text style={styles.noListsText}>No personal lists found for this category</Text>
+                            <View style={styles.noListsContainer}>
+                                <Text style={styles.noListsText}>No personal lists found for this category</Text>
+                                <TouchableOpacity
+                                    style={styles.createFirstListButton}
+                                    onPress={() => {
+                                        router.push('Create Lists');
+                                        handleClose();
+                                    }}
+                                >
+                                    <Text style={styles.createFirstListButtonText}>Create your first list</Text>
+                                </TouchableOpacity>
+                            </View>
                         )
                     )}
                 </View>
@@ -367,62 +384,6 @@ const VotingSessionModal = ({visible, onClose, onSessionCreated, onShowTMDBGener
         </View>
     );
 
-    //Session details
-    const renderSessionDetails = () => (
-        <ScrollView style={styles.content}>
-            <View style = {styles.sectionHeader}>
-                <TouchableOpacity onPress={() => setCurrentView('cardSelection')}>
-                    <Ionicons name="arrow-back" size={24} color="#3f51b5" />
-                </TouchableOpacity>
-                <Text style={styles.sectionTitle}>Session Details</Text>
-            </View>
-
-            <View style={styles.inputContainter}>
-                <Text style={styles.inputLabel}>Session Title</Text>
-                <TextInput
-                    style={styles.textInput}
-                    value={sessionTitle}
-                    onChangeText={setSessionTitle}
-                    placeholder="Enter session title"
-                    maxLength={100}
-                />
-            </View>
-
-            <View style={styles.inputContainer}>
-                <Text style={styles.inputLabel}>Description (Optional)</Text>
-                <TextInput
-                    style={[styles.textInput, styles.textArea]}
-                    value={sessionDescription}
-                    onChangeText={setSessionDescription}
-                    placeholder="Add a description for your voting session"
-                    multiline
-                    numberOfLines={3}
-                    maxLength={500}
-                />
-            </View>
-
-            <View style={styles.previewContainer}>
-                <Text style={styles.previewTitle}>Items to Vote On:</Text>
-                {selectedItems.map((item, index) => (
-                    <View key={item.id || index} style={styles.previewItem}>
-                        <Text style={styles.previewItemName}>{item.name}</Text>
-                        <Text style={styles.previewItemDescription}>{item.description}</Text>
-                    </View>
-                ))}
-            </View>
-
-            <TouchableOpacity
-                style={[styles.createButton, (!sessionTitle.trim() || loading) && styles.createButtonDisabled]}
-                onPress={handleCreateSession}
-                disabled={!sessionTitle.trim() || loading}
-            >
-                <Text style={styles.createButtonText}>
-                    {loading ? 'Creating Session...' : 'Create Voting Session'}
-                </Text>
-            </TouchableOpacity>
-        </ScrollView>
-    );
-
     return (
         <Modal
             animationType="slide"
@@ -435,7 +396,6 @@ const VotingSessionModal = ({visible, onClose, onSessionCreated, onShowTMDBGener
                     <View style={styles.modalHeader}>
                         <Text style={styles.modalTitle}>
                             {currentView === 'categories' ? 'Create Voting Session' :
-                            currentView === 'cardSelection' ? 'Select Items' :
                             currentView === 'lists' ? 'Choose List' : 'Session Details'}
                         </Text>
                         <TouchableOpacity onPress={handleClose}>
@@ -445,8 +405,6 @@ const VotingSessionModal = ({visible, onClose, onSessionCreated, onShowTMDBGener
 
                     {currentView === 'categories' && renderCategories()}
                     {currentView === 'lists' && renderListsSelection()}
-                    {currentView === 'cardSelection' && renderCardSelection()}
-                    {currentView === 'session' && renderSessionDetails()}
                 </View>
             </View>
         </Modal>
@@ -457,14 +415,15 @@ const styles = StyleSheet.create({
     modalOverlay:{
         flex: 1,
         backgroundColor: '#333',
-        justifyContent: 'flex-end',
+        justifyContent: 'center',
     },
     modalContainer:{
         backgroundColor: '#fff',
-        borderTopLeftRadius: 20,
-        borderTopRightRadius: 20,
-        maxHeight: '80%',
-        minHeight: '50%',
+        borderRadius: 20,
+        width: '100%',
+        maxHeight: '100%',
+        minHeight: '80%',
+        paddingBottom: 10,
     },
     modalHeader: {
         flexDirection: 'row',
@@ -714,10 +673,74 @@ const styles = StyleSheet.create({
         fontWeight: '600',
     },
     categoryRow: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  gap: 10,
-},
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+    },
+    generateNewListButton: {
+        backgroundColor: '#fff',
+        borderRadius: 12,
+        padding: 16,
+        marginBottom: 20,
+        borderWidth: 2,
+        borderColor: '#4CAF50',
+        borderStyle: 'dashed',
+    },
+    generateNewListContent: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    generateNewListText: {
+        marginLeft: 12,
+        flex: 1,
+    },
+    generateNewListTitle: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#4caf50',
+    },
+    generateNewListSubtitle: {
+        fontSize: 12,
+        color: '#666',
+        marginTop: 2,
+    },
+    noListsContainer:{
+        alignItems: 'center',
+        marginBottom: 40,
+    },
+    createFirstListButton: {
+        backgroundColor: '#3f51b5',
+        borderRadius: 8,
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        marginTop: 12,
+    },
+    createFirstListButtonText: {
+        color: '#fff',
+        fontSize: 14,
+        fontWeight: '500',
+    },
+    sectionHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 20,
+    },
+    sectionTitle: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: '#333',
+        marginLeft: 12,
+    },
+    moreItemsText: {
+        fontSize: 12,
+        color: '#666',
+        fontStyle: 'italic',
+        textAlign: 'center',
+        marginTop: 8,
+    },
+    inputContainer: {
+        marginBottom: 20,
+    },
 });
 
 export default VotingSessionModal;

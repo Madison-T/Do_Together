@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { useUserLists } from '../contexts/UserListsContext';
+import { listCategories, useUserLists } from '../contexts/UserListsContext';
 
 export default function CreateListScreen() {
     const router = useRouter();
@@ -10,6 +10,7 @@ export default function CreateListScreen() {
     const [title, setTitle] = useState('');
     const [activities, setActivities] = useState(['']);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [selectedCategory, setSelectedCategory] = useState(null);
     const [errorMessage, setErrorMessage] = useState('');
 
     const handleAddActivity = () => {
@@ -48,11 +49,12 @@ export default function CreateListScreen() {
             setIsSubmitting(true);            
 
             const filteredActivities = activities.filter(activity => activity.trim() !== '');
-            const result = await createList(title, filteredActivities);
+            const result = await createList(title, filteredActivities, selectedCategory);
 
             if(result.success){
                 setTitle('');
                 setActivities([]);
+                setSelectedCategory(null);
                 setIsSubmitting(false);
                 router.push({
                     pathname: '/viewLists',
@@ -97,6 +99,49 @@ export default function CreateListScreen() {
                     placeholder="Enter list title"
                     maxLength={50}
                 />
+            </View>
+
+            <View style={styles.formGroup}>
+                <Text style={styles.label}>Category (Optional)</Text>
+                <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    style={styles.categoriesContainer}
+                    contentContainerStyle={styles.categoriesContent}
+                >
+                    {listCategories.map((category) => (
+                        <TouchableOpacity
+                            key={category.id}
+                            style={[
+                                styles.categoryChip,
+                                selectedCategory?.id === category.id && styles.selectedCategoryChip
+                            ]}
+                            onPress={() => setSelectedCategory(category)}
+                        >
+                            <Ionicons 
+                                name={category.icon}
+                                size={16}
+                                color={selectedCategory?.id === category.id ? '#fff': category.color}
+                            />
+                            <Text style = {[
+                                styles.categoryChipText,
+                                selectedCategory?.id === category.id && styles.selectedCategoryChipText
+                            ]}>
+                                {category.name}
+                            </Text>
+                        </TouchableOpacity>
+                    ))}
+                </ScrollView>
+                {
+                    selectedCategory && (
+                        <TouchableOpacity
+                            style={styles.clearCategoryButton}
+                            onPress={() => setSelectedCategory(null)}
+                        >
+                            <Text style={styles.clearCategoryText}>Clear category</Text>
+                        </TouchableOpacity>
+                    )
+                }
             </View>
             
             <View style={styles.formGroup}>
@@ -267,5 +312,45 @@ const styles = StyleSheet.create({
         color: 'black',
         fontSize: 14,
         textAlign: 'center',
+    },
+    categoriesContainer: {
+        flexDirection: 'row',
+    },
+    categoriesContent: {
+        paddingHorizontal: 4,
+    },
+    categoryChip: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        marginRight: 8,
+        backgroundColor: '#fff',
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: '#ddd',
+    },
+    selectedCategoryChip: {
+        backgroundColor: '#3f51b5',
+        borderColor: '#3f51b5',
+    },
+    categoryChipText: {
+        fontSize: 12,
+        fontWeight: '500',
+        color: '#666',
+        marginLeft: 4,
+    },
+    selectedCategoryChipText: {
+        color: '#fff',
+    },
+    clearCategoryButton: {
+        alignSelf: 'flex-start',
+        marginTop: 8,
+        paddingVertical: 4,
+    },
+    clearCategoryText: {
+        fontSize: 12,
+        color: '#3f51b5',
+        textDecorationLine: 'underline',
     },
 });
