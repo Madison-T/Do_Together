@@ -1,11 +1,22 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { ActivityIndicator, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useState } from 'react';
+import { ActivityIndicator, FlatList, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { usePresetLists } from '../contexts/PresetListsContext';
+import { listCategories } from '../contexts/UserListsContext';
 
 export default function PresetLists() {
   const router = useRouter();
   const { presetLists, loading } = usePresetLists();
+  const [selectedFilterCategory, setSelectedFilterCategory] = useState('all');
+
+  //Filter the lists based on the selected category
+  const filteredLists = presetLists.filter(list => {
+    if(selectedFilterCategory === 'all'){
+      return true;
+    }
+    return list.category === selectedFilterCategory;
+  });
 
   const handleSelect = (list) => {
     router.push({ pathname: '/presetListView', params: { listId: list.id } });
@@ -28,16 +39,65 @@ export default function PresetLists() {
 
       <Text style={styles.title}>Pre-set Lists</Text>
 
+      {/** Category Filter Buttons */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.filterContainer}
+      >
+        <TouchableOpacity
+          style={[styles.filterButton,
+            selectedFilterCategory === 'all' && styles.activeFilterButton,
+          ]}
+          onPress={() => setSelectedFilterCategory('all')}
+        >
+          <Text style={[
+            styles.filterButtonText,
+            selectedFilterCategory === 'all' && styles.activeFilterButtonText,
+          ]}>All</Text>
+        </TouchableOpacity>
+
+        {listCategories.map((category) => (
+          <TouchableOpacity
+            key={category.id}
+            style={[
+              styles.filterButton,
+              selectedFilterCategory === category.id && styles.activeFilterButton,
+            ]}
+            onPress={() => setSelectedFilterCategory(category.id)}
+          >
+            <Text style={[
+              styles.filterButtonText,
+              selectedFilterCategory === category.id && styles.activeFilterButtonText,
+            ]}>
+              {category.name}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+
       <FlatList
-        data={presetLists}
+        data={filteredLists}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContainer}
-        renderItem={({ item }) => (
-          <TouchableOpacity style={styles.listItem} onPress={() => handleSelect(item)}>
-            <Ionicons name="list-circle-outline" size={24} color="#3f51b5" style={styles.icon} />
-            <Text style={styles.listTitle}>{item.title}</Text>
-            <Ionicons name="chevron-forward" size={20} color="#777" />
-          </TouchableOpacity>
+        renderItem={({ item }) => {
+          const category = listCategories.find(cat => cat.id === item.category);
+          const iconName = category ? category.icon : 'ellipsis-horizonal-outline';
+          const iconColor = category ? category.color: '#9e9e9e';
+
+          return (
+            <TouchableOpacity style={styles.listItem} onPress={() => handleSelect(item)}>
+              <Ionicons name={iconName} size={24} color={iconColor} style={styles.icon} />
+              <Text style={styles.listTitle}>{item.title}</Text>
+              <Ionicons name="chevron-forward" size={20} color="#777" />
+            </TouchableOpacity>
+          );
+        }}
+        ListEmptyComponent={() => (
+          <View style={styles.emptyListContainer}>
+            <Ionicons name="sad-outline" size={50} color="#ccc" />
+            <Text style={styles.emptyListText}>No lists found for this category.</Text>
+          </View>
         )}
       />
     </View>
@@ -102,4 +162,43 @@ const styles = StyleSheet.create({
     marginLeft: 6,
     fontWeight: '500',
   },
+  filterContainer: {
+    paddingHorizontal: 20,
+    marginBottom: 15,
+    maxHeight: 40,
+    paddingRight: 80,
+  },
+  filterButton: {
+    backgroundColor: '#e0e0e0',
+    paddingVertical: 8,
+    paddingHorizontal: 15,
+    borderRadius: 20,
+    marginRight: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  activeFilterButton: {
+    backgroundColor: '#3f51b5',
+  },
+  filterButtonText: {
+    color: '#555',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  activeFilterButtonText: {
+    color: '#fff',
+  },
+  emptyListContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 50,
+  },
+  emptyListText: {
+    fontSize: 16,
+    color: '#888',
+    marginTop: 10,
+    textAlign: 'center',
+  },
 });
+
