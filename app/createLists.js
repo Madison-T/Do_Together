@@ -47,7 +47,8 @@ export default function CreateListScreen() {
         try{
             setIsSubmitting(true);            
 
-            const result = await createList(title, activities);
+            const filteredActivities = activities.filter(activity => activity.trim() !== '');
+            const result = await createList(title, filteredActivities);
 
             if(result.success){
                 setTitle('');
@@ -57,7 +58,7 @@ export default function CreateListScreen() {
                     pathname: '/viewLists',
                     params: {
                         listId: result.id,
-                        listType: 'user',
+                        listType: 'regular',
                     }
                 });
             }else{

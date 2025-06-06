@@ -1,4 +1,4 @@
-import { tmdbCreateList, tmdbGetList, tmdbRefreshList } from '@/hooks/useFirestore';
+import { tmdbCreateActivity, tmdbCreateList, tmdbGetList, tmdbRefreshList } from '@/hooks/useFirestore';
 import {
   addDoc,
   arrayRemove,
@@ -14,7 +14,7 @@ import {
 } from 'firebase/firestore';
 import { createContext, useContext, useEffect, useState } from 'react';
 import { auth, firestore } from '../firebaseConfig';
-import { tmdbCreateActivity } from '../hooks/useFirestore';
+
 import { ProviderNames } from '../hooks/useMovieAPI';
 
 
@@ -82,12 +82,36 @@ export const UserListsProvider = ({ children }) => {
         });
       });
 
-      tmdbSnapshot.forEach((doc) => {
-        lists.push({
+      //handle tmdb lists 
+      const tmdbListPromises = tmdbSnapshot.docs.map(async(doc) => {
+        const listData = {
           id: doc.id,
           ...doc.data()
+        };
+
+        //fetch activities for this tmdb list
+        if (listData.listType === 'tmdb_watchlist') {
+        const activitiesQuery = query(
+          collection(firestore, 'TMDBActivities'),
+          where('listId', '==', doc.id)
+        );
+        const activitySnapshot = await getDocs(activitiesQuery);
+        const activities = [];
+        activitySnapshot.forEach(activityDoc => {
+          activities.push({
+            ...activityDoc.data(),
+            docId: activityDoc.id
+          });
         });
+        listData.activities = activities;
+      } else {
+        listData.activities = listData.activities || [];
+      }
+      return listData;
       });
+
+      const tmdbLists = await Promise.all(tmdbListPromises);
+      lists.push(...tmdbLists);
 
       setUserLists(lists);
     } catch (error) {
@@ -133,7 +157,10 @@ export const UserListsProvider = ({ children }) => {
         const activitySnapshot = await getDocs(activitiesQuery);
         const activities = [];
         activitySnapshot.forEach(doc => {
-          activities.push(doc.data());
+          activities.push({
+            ...doc.data(),
+            docId: doc.id
+          });
         });
 
         listData.activities = activities;
@@ -163,21 +190,31 @@ export const UserListsProvider = ({ children }) => {
     if (!activityItem) return { success: false, error: 'Invalid activity' };
 
     try {
-      const listRef = doc(firestore, 'userLists', listId);
-      const listSnap = await getDoc(listRef);
-      let actualRef = listRef;
+      let finalActivityItem = activityItem;
 
-      if (!listSnap.exists()) {
-        actualRef = doc(firestore, 'TMDBLists', listId);
+      if(currentList?.listType === 'tmdb_watchlist'){
+        const activityData = {
+          ...activityItem,
+          updatedAt: new Date(),
+          listId: listId
+        };
+
+          const activityRef = await addDoc(collection(firestore, 'TMDBActivities'), activityData);
+
+          finalActivityItem = {
+            ...activityData,
+            docId: activityRef.id
+          };
+      }else{
+        const listRef = doc(firestore, 'userLists', listId);
+        await updateDoc(listRef, {
+          activities: arrayUnion(activityItem)
+        });
       }
-
-      await updateDoc(actualRef, {
-        activities: arrayUnion(activityItem)
-      });
 
       setCurrentList((prev) => ({
         ...prev,
-        activities: [...(prev.activities || []), activityItem]
+        activities: [...(prev.activities || []), finalActivityItem]
       }));
 
       setUserLists((prevLists) =>
@@ -185,7 +222,7 @@ export const UserListsProvider = ({ children }) => {
           list.id === listId
             ? {
                 ...list,
-                activities: [...(list.activities || []), activityItem]
+                activities: [...(list.activities || []), finalActivityItem]
               }
             : list
         )
@@ -200,22 +237,44 @@ export const UserListsProvider = ({ children }) => {
 
   const removeActivity = async (listId, activityToRemove) => {
     try {
-      const listRef = doc(firestore, 'userLists', listId);
-      const listSnap = await getDoc(listRef);
-      let actualRef = listRef;
+      //Check if this is a TMDB list by looking at current list data
+      if(currentList?.listType === 'tmdb_watchlist'){
+        if(activityToRemove.docId){
+          const activityRef = doc(firestore, 'TMDBActivities', activityToRemove.docId);
+          await deleteDoc(activityRef);
+        }else{
+          const activitiesQuery = query(
+            collection(firestore, 'TMDBActivities'),
+            where('listId', '==', listId),
+            where('tmdbId', '==', activityToRemove.tmdbId || activityToRemove)
+          );
 
-      if (!listSnap.exists()) {
-        actualRef = doc(firestore, 'TMDBLists', listId);
+          const snapshot = await getDocs(activitiesQuery);
+
+          if(!snapshot.empty){
+            const docToDelete = snapshot.docs[0];
+            await deleteDoc(docToDelete.ref);
+          }
+        }
+      }else{
+        //For regular user lists
+        const listRef = doc(firestore, 'userLists', listId);
+        await updateDoc(listRef, {
+          activities: arrayRemove(activityToRemove)
+        });
       }
-
-      await updateDoc(actualRef, {
-        activities: arrayRemove(activityToRemove)
-      });
-
+      
+      //Update local state
       setCurrentList((prev) => ({
         ...prev,
         activities: prev.activities.filter(
-          (a) => JSON.stringify(a) !== JSON.stringify(activityToRemove)
+          (a) => {
+            if(currentList?.listType === 'tmdb_watchlist'){
+              return a.tmdbId !== activityToRemove.tmdbId;
+            }else{
+              return JSON.stringify(a) !== JSON.stringify(activityToRemove);
+            }
+          }
         )
       }));
 
@@ -225,7 +284,13 @@ export const UserListsProvider = ({ children }) => {
             ? {
                 ...list,
                 activities: list.activities.filter(
-                  (a) => JSON.stringify(a) !== JSON.stringify(activityToRemove)
+                  (a) => {
+                    if(currentList?.listType === 'tmdb_watchlist'){
+                      return a.tmdbId !== (activityToRemove.tmdbId || activityToRemove);
+                    }else{
+                      return JSON.stringify(a) !== JSON.stringify(activityToRemove);
+                    }
+                  }
                 )
               }
             : list
@@ -238,6 +303,7 @@ export const UserListsProvider = ({ children }) => {
       return { success: false, error: 'Failed to remove activity' };
     }
   };
+
   const deleteList = async (listId) => {
     try {
       try {

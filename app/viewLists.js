@@ -14,6 +14,7 @@ import {
     View
 } from 'react-native';
 import { useUserLists } from '../contexts/UserListsContext';
+import { auth } from '../firebaseConfig';
 
 export default function ListDetailsScreen() {
     const router = useRouter();
@@ -52,9 +53,15 @@ export default function ListDetailsScreen() {
 
         try {
             const activityText = newActivity.trim();
-            const isDuplicate = currentList.activities?.some(
-                activity => activity.toLowerCase() === activityText.toLowerCase()
-            );
+            const isDuplicate = currentList.activities?.some(activity => {
+                if(currentList.listType === 'tmdb_watchlist'){
+                    return activity.title?.toLowerCase() === activityText.toLowerCase() ||
+                        activity.tmdbId === activityText;
+                }else{
+                    const activityValue = typeof activity === 'string' ? activity : activity.title;
+                    return activityValue?.toLowerCase() === activityText.toLowerCase();
+                }
+            });
 
             if (isDuplicate) {
                 setErrorMessage('This activity already exists in the list');
@@ -62,7 +69,25 @@ export default function ListDetailsScreen() {
             }
 
             setIsAdding(true);
-            const result = await addActivity(listId, activityText);
+
+            let activityToAdd;
+            if(currentList.listType === 'tmdb_watchlist'){
+                activityToAdd = {
+                    title: activityText,
+                    tmdbId: activityText,
+                    contentType: 'movie',
+                    addedAt: new Date(),
+                    addedBy: auth.currentUser?.uid,
+                    listId: listId
+                };
+            }else{
+                activityToAdd = {
+                    title: activityText,
+                    addedAt: new Date()
+                };
+            }
+
+            const result = await addActivity(listId, activityToAdd);
 
             if (result.success) {
                 setNewActivity('');
