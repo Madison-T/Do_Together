@@ -353,7 +353,7 @@ const PlaceListGenerator = ({ visible, onClose, groupId, onListCreated }) => {
                             <Ionicons name="list" size={20} color="#fff" />
                         )}
                         <Text style={styles.generateButtonText}>
-                            {loading ? 'Generating ...' : 'Generate Watchlist'}
+                            {loading ? 'Generating ...' : 'Generate'}
                         </Text>
                     </TouchableOpacity>
                 </View>
