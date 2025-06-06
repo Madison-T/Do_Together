@@ -71,6 +71,42 @@ export default function CreateVoteSession() {
     loadActivities();
   }, [listId, listType]);
 
+  //check if two activities are the same
+  const areActivitiesEqual = (activity1, activity2) => {
+    if(typeof activity1 === 'string' && typeof activity2 === 'string'){
+      return activity1 === activity2;
+    }
+
+    if(typeof activity1 === 'object' && typeof activity2 === 'object'){
+      //for places from google places api
+      if(activity1.placeId && activity2.placeId){
+        return activity1.placeId === activity2.placeId;
+      }
+
+      //for tmdb movies/shows
+      if(activity1.tmdbId && activity2.tmdbId){
+        return activity1.tmdbId === activity2.tmdbId;
+      }
+
+      //for other activities
+      const title1 = activity1.title || activity1.name || '';
+      const title2 = activity2.title || activity2.name || '';
+
+      if(activity1.address && activity2.address){
+        return title1 === title2 && activity1.address == activity2.address;
+      }
+
+      return title1 === title2;
+    }
+    return false;
+  };
+
+  const isActivitySelected = (activity) => {
+    return selectedActivities.some(selectedActivities => 
+      areActivitiesEqual(selectedActivities, activity)
+    );
+  };
+
   const openPicker = (isStart) => {
     setIsStartTime(isStart);
     setShowPicker(true);
@@ -127,6 +163,24 @@ export default function CreateVoteSession() {
       router.replace('/dashboard');
     }
   };
+
+  //function to display text for an activity
+  const getActivityDisplayText = (item) => {
+    if(typeof item === 'string') return item;
+    if(typeof item.title === 'string') return item.title;
+    if(typeof item.name === 'string') return item.name;
+    console.warn('Invalid activity item title:', item);
+    return 'Untitiled';
+  };
+
+  const getActivitySubtitle = (item) => {
+    if(typeof item === 'object'){
+      if(item.address) return item.address;
+      if(item.rating && item.rating !== 'N/A') return `Rating: ${item.rating}`;
+    }
+    return null;
+  };
+
   return (
     <ScrollView contentContainerStyle={styles.scrollContent}>
       <View style={styles.container}>
@@ -171,33 +225,27 @@ export default function CreateVoteSession() {
         {errors.group && <Text style={styles.error}>{errors.group}</Text>}
 
         <Text style={styles.sectionHeading}>Select Activities</Text>
-        {activityList.map((item, index) => (
-  <TouchableOpacity
-    key={index}
-    style={[
-      styles.activityItem,
-      selectedActivities.some((a) => {
-  if (typeof a === 'object' && typeof item === 'object') {
-    if (a.tmdbId && item.tmdbId) return a.tmdbId === item.tmdbId;
-    if (a.placeId && item.placeId) return a.placeId === item.placeId;
-    return a.title === item.title && a.address === item.address;
-  }
-  return a === item;
-}) && styles.selectedActivity,
-    ]}
-    onPress={() => addActivity(item)}
-  >
-    <Text style={styles.activityText}>
-  {(() => {
-    if (typeof item === 'string') return item;
-    if (typeof item.title === 'string') return item.title;
-    if (typeof item.name === 'string') return item.name;
-    console.warn('Invalid activity item title:', item);
-    return 'Untitled';
-  })()}
-</Text>
-  </TouchableOpacity>
-))}
+        {activityList.map((item, index) => {
+          const isSelected = isActivitySelected(item);
+          const displayText = getActivityDisplayText(item);
+          const subtitle = getActivitySubtitle(item);
+
+          return (
+            <TouchableOpacity
+              key={index}
+              style={[
+                styles.activityItem,
+                isSelected && styles.selectedActivity,
+              ]}
+              onPress={() => addActivity(item)}
+            >
+              <Text style={styles.activityText}>{displayText}</Text>
+              {subtitle && (
+                <Text style={styles.activitySubtitle}>{subtitle}</Text>
+              )}
+            </TouchableOpacity>
+          );
+        })}
 
         {errors.activities && <Text style={styles.error}>{errors.activities}</Text>}
 
@@ -349,6 +397,12 @@ const styles = StyleSheet.create({
   },
   activityText: {
     fontSize: 15,
+    fontWeight: '500',
+  },
+  activitySubtitle: {
+    fontSize: 13,
+    color: '#666',
+    marginTop: 2,
   },
   timeButton: {
     backgroundColor: '#e6e6e6',

@@ -105,6 +105,7 @@ const PlaceListGenerator = ({ visible, onClose, groupId, onListCreated }) => {
     }
     setPlaceTypes(newSet);
   };
+
   const handleGenerate = async () => {
     if (!selectedPlace || !listTitle.trim()) {
       Alert.alert("Missing Info", "Enter a title and select a location.");
@@ -151,6 +152,7 @@ const PlaceListGenerator = ({ visible, onClose, groupId, onListCreated }) => {
       setLoading(false);
     }
   };
+
   const handleSave = async () => {
   if (places.length === 0) return Alert.alert("Nothing to save.");
 
@@ -171,37 +173,43 @@ const PlaceListGenerator = ({ visible, onClose, groupId, onListCreated }) => {
     return Alert.alert("Error", "All activities must have a valid title.");
   }
 
-  const result = await createList(listTitle.trim(), activityItems);
-  if (result.success) {
-    const newList = {
-      id: result.id,
-      title: listTitle.trim(),
-      activities: activityItems
-    };
+  setLoading(true);
 
-    if (onListCreated) onListCreated(newList);
+  try{
+    if(!auth.currentUser){
+      throw new Error("You must be logged in to make a custom list");
+    }
 
-    // Pre-fill session context just like TMDBListGenerator
-    //setSelectedGroupId(groupId);
-    //setSessionName(`${newList.title} Voting`);
-    //setStartTime(new Date().toISOString());
-    //setEndTime(new Date(Date.now() + 15 * 60000).toISOString());
-   // activityItems.forEach(addActivity);
+    const result = await createList(listTitle.trim(), activityItems);;
 
-   InteractionManager.runAfterInteractions(() => {
-      router.push({
-        pathname: '/createVoteSession',
-        params: {
-          listId: newList.id,
-          listType: 'user',
-          groupId: groupId,
-          listTitle: newList.title
-        }
-      });
-      onClose(); // Only close the modal after navigation begins
-      });
-  }else{
-    Alert.alert("Error", result.error || "Failed to create google api list");
+    if (result.success) {
+      const newList = {
+        id: result.id,
+        title: listTitle.trim(),
+        activities: activityItems
+      };
+
+      if (onListCreated) onListCreated(newList);
+
+       InteractionManager.runAfterInteractions(() => {
+        router.push({
+          pathname: '/createVoteSession',
+          params: {
+            listId: newList.id,
+            listType: 'user',
+            groupId: groupId,
+            listTitle: newList.title
+          }
+        });
+        onClose(); // Only close the modal after navigation begins
+        });
+    }else{
+      Alert.alert("Error", result.error || 'Failed to create google api list');
+    }
+  }catch (error){
+    console.error("Database save error:", error);
+  }finally{
+    setLoading(false);
   }
 };
 

@@ -383,13 +383,39 @@ export const UserListsProvider = ({ children }) => {
         };
       }
 
-      const processedActivities = activities
+      //Validate activities
+      if(!Array.isArray(activities) || activities.length === 0){
+        throw new Error('Activities must be a non-empty array');
+      }
+
+      let processedActivities;
+
+      if(activities.every(activity => typeof activity === 'string')){
+        processedActivities = activities
         .filter(activity => typeof activity === 'string' && activity.trim() !== '')
         .map(activity => ({
           title: activity.trim(),
           createdAt: new Date(),
           completed: false
         }));
+      }else{
+        processedActivities = activities
+          .filter(activity => activity && typeof activity.title === 'string' && activity.title.trim() !== '')
+          .map(activity => ({
+            title: activity.title.trim(),
+            address: activity.address || '',
+            rating: activity.rating || 'N/A',
+            placedId: activity.placedId || '',
+            location: activity.location || null,
+            createdAt: activity.addedAt || new Date(),
+            addedBy: activity.addedBy || auth.currentUser.uid,
+            completed: false
+          }));
+      }
+
+      if(processedActivities.length === 0){
+        throw new Error('No valid activities provided');
+      }
 
       const listData = {
         title: title.trim(),
