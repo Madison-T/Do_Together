@@ -225,7 +225,8 @@ export default function CreateVoteSession() {
         {errors.group && <Text style={styles.error}>{errors.group}</Text>}
 
         <Text style={styles.sectionHeading}>Select Activities</Text>
-        {activityList.map((item, index) => {
+        {activityList.length > 0 ? (
+          activityList.map((item, index) => {
           const isSelected = isActivitySelected(item);
           const displayText = getActivityDisplayText(item);
           const subtitle = getActivitySubtitle(item);
@@ -245,7 +246,10 @@ export default function CreateVoteSession() {
               )}
             </TouchableOpacity>
           );
-        })}
+        })
+        ):(
+          <Text style={styles.infoText}>No activities found for this list.</Text>
+        )}
 
         {errors.activities && <Text style={styles.error}>{errors.activities}</Text>}
 
