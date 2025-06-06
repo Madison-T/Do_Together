@@ -306,20 +306,44 @@ export const UserListsProvider = ({ children }) => {
 
   const deleteList = async (listId) => {
     try {
-      try {
-        const listRef = doc(firestore, 'userLists', listId);
-        await deleteDoc(listRef);
-      } catch (error) {
-        const tmdbListRef = doc(firestore, 'TMDBLists', listId);
-        await deleteDoc(tmdbListRef);
-      }
+        let listRef = doc(firestore, 'userLists', listId);
+        let listSnap = await getDoc(listRef);
+        let isRegularList = listSnap.exists();
 
-      const updatedLists = userLists.filter((list) => list.id !== listId);
-      setUserLists(updatedLists);
-      return true;
+        if(!isRegularList){
+          listRef = doc(firestore, 'TMDBLists', listId);
+          listSnap = await getDoc(listRef);
+
+          if(!listSnap.exists()){
+            console.error('List not found in any collection');
+            return {success: false, error: 'List not found'};
+          }
+        }
+        await deleteDoc(listRef);
+
+        if(!isRegularList){
+          const actitvitiesQuery = query(
+            collection(firestore, 'TMDBActivities'),
+            where('listId', '==', listId)
+          );
+          const activitiesSnapshot = await getDocs(actitvitiesQuery);
+
+          const deletePromises = activitiesSnapshot.docs.map(doc => deleteDoc(doc.ref));
+          await Promise.all(deletePromises);
+        }
+
+        //Update local state
+        const updatedLists = userLists.filter((list) => list.id !== listId);
+        setUserLists(updatedLists);
+
+        if(currentList && currentList.id === listId){
+          setCurrentList(null);
+        }
+
+        return {success: true};
     } catch (error) {
-      console.error('Failed to delete list', error);
-      return false;
+      console.error('Failed to delete list:', error);
+      return {success: false, error: 'Failed to delete list'};
     }
   };
 
@@ -359,13 +383,17 @@ export const UserListsProvider = ({ children }) => {
         };
       }
 
-      const filteredActivities = activities.filter(
-  (activity) => typeof activity?.title === 'string' && activity.title.trim() !== ''
-);
+      const processedActivities = activities
+        .filter(activity => typeof activity === 'string' && activity.trim() !== '')
+        .map(activity => ({
+          title: activity.trim(),
+          createdAt: new Date(),
+          completed: false
+        }));
 
       const listData = {
         title: title.trim(),
-        activities: filteredActivities,
+        activities: processedActivities,
         userId: auth.currentUser.uid,
         createdAt: new Date(),
         listType: 'regular'
