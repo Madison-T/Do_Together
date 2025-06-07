@@ -11,9 +11,14 @@ export const PresetListsProvider = ({ children }) => {
 
   const loadPresetLists = async () => {
     setLoading(true);
-    const data = await fetchPresetLists();
-    setPresetLists(data);
-    setLoading(false);
+    try{
+      const data = await fetchPresetLists();
+      setPresetLists(data);
+    }catch(error){
+      console.log("Failed to load preset lists:", error);
+    }finally{
+      setLoading(false);
+    }
   };
 
   const getPresetListById = async (listId) => {
