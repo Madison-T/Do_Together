@@ -54,7 +54,7 @@ export default function TabsLayout(): JSX.Element | null {
 
               if (route.name === 'dashboard') iconName = 'grid';
               else if (route.name === 'swipe/index') iconName = 'heart';
-              else if (route.name === 'history/index') iconName = 'time';
+              else if (route.name === 'results/index') iconName = 'time';
 
               return <Ionicons name={iconName} size={size} color={color} />;
             },
@@ -62,7 +62,7 @@ export default function TabsLayout(): JSX.Element | null {
         >
           <Tabs.Screen name="dashboard" options={{ title: 'Dashboard' }} />
           <Tabs.Screen name="swipe/index" options={{ title: 'Swipe' }} />
-          <Tabs.Screen name="history/index" options={{ title: 'History' }} />
+          <Tabs.Screen name="results/index" options={{ title: 'Results' }} />
         </Tabs>
       </VotesProvider>
     </GroupProvider>
