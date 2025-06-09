@@ -2,20 +2,21 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    FlatList,
-    Pressable,
-    RefreshControl,
-    StyleSheet,
-    Text,
-    View
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  Pressable,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  View
 } from 'react-native';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useGroupContext } from '../../../contexts/GroupContext';
+import { listCategories } from '../../../contexts/UserListsContext';
 import { useVotesContext } from '../../../contexts/VotesContext';
 import {
-    fetchVotingSessionsByGroup
+  fetchVotingSessionsByGroup
 } from '../../../hooks/useFirestore';
 
 // Constants for better maintainability
@@ -346,30 +347,26 @@ export default function ResultsScreen() {
   }, []);
 
   const getSessionIcon = useCallback((session) => {
-    // Check if any activity has TMDB data (movies/TV)
+    const sessionCategory = session.listType || session.category;
+
+    if(sessionCategory){
+      const categoryMatch = listCategories.find(cat => cat.id === sessionCategory);
+      if(categoryMatch){
+        return categoryMatch.icon;
+      }
+    }
+
     if (session.activities?.some(a => a.tmdbId)) {
-      return 'film-outline';
-    }
-    
-    // Check for place-based activities (restaurants, etc.)
-    if (session.activities?.some(a => a.placeId || a.address)) {
-      return 'restaurant-outline';
-    }
-    
-    // Icon mapping
-    const iconMap = {
-      'tmdb': 'film-outline',
-      'movies': 'film-outline',
-      'tv-shows': 'tv-outline',
-      'restaurants': 'restaurant-outline',
-      'books': 'book-outline',
-      'music': 'musical-notes-outline',
-      'food': 'pizza-outline',
-      'games': 'game-controller-outline',
-      'shopping': 'bag-outline'
-    };
-    
-    return iconMap[session.listType] || iconMap[session.category] || 'list-outline';
+    return 'film-outline';
+  }
+  
+  // Check for place-based activities (restaurants, etc.)
+  if (session.activities?.some(a => a.placeId || a.address)) {
+    return 'restaurant-outline';
+  }
+  
+  // Default fallback
+  return 'list-outline';
   }, []);
 
   const handleSessionPress = useCallback((session) => {
