@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, Modal, SafeAreaView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, FlatList, Image, Modal, SafeAreaView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import * as FirestoreService from '../hooks/useFirestore';
 import { useNotifications } from '../hooks/useNotifications';
 
@@ -31,17 +31,28 @@ export default function UserSearchModal({visible, onClose, onAddUser, currentMem
         }
     }, [searchQuery, users, currentMembers]);
 
-    const fetchUsers = async () =>{
-        setLoading(true);
-        try{
-            const allUsers = await FirestoreService.fetchUsers();
-            setUsers(allUsers);
-        }catch(error){
-            console.error('Error fetching users', error);
-        }finally{
-            setLoading(false);
-        }
-    };
+    const fetchUsers = async () => {
+  setLoading(true);
+  try {
+    const rawUsers = await FirestoreService.fetchUsers();
+    const enrichedUsers = await Promise.all(
+      rawUsers.map(async (user) => {
+        const fullData = await FirestoreService.fetchUserById(user.id);
+        return {
+          id: user.id,
+          name: `${fullData?.firstName ?? 'Unknown'} ${fullData?.lastName ?? ''}`,
+          photoURL: fullData?.photoURL ?? null,
+        };
+      })
+    );
+    setUsers(enrichedUsers);
+  } catch (error) {
+    console.error('Error fetching users', error);
+  } finally {
+    setLoading(false);
+  }
+};
+
 
     const toggleUserSelection = (userId) =>{
         if(selectedUsers.includes(userId)){
@@ -73,25 +84,35 @@ export default function UserSearchModal({visible, onClose, onAddUser, currentMem
         }
     }
 
-    const renderUser = ({ item }) =>(
-        <TouchableOpacity
-            style={[
-                styles.userItem,
-                selectedUsers.includes(item.id) && styles.selectedUserItem
-            ]}
-            onPress={() => toggleUserSelection(item.id)}
-        >
-            <View style={styles.userAvatar}>
-                <Text style={styles.userInitial}>
-                    {item.name.charAt(0).toUpperCase()}
-                </Text>
-            </View>
-            <Text style={styles.userName}>{item.name}</Text>
-            {selectedUsers.includes(item.id) && (
-                <Ionicons name="checkmark-circle" size={24} color="#3f51b5" />
-            )}
-        </TouchableOpacity>
-    );
+    const renderUser = ({ item }) => (
+  <TouchableOpacity
+    style={[
+      styles.userItem,
+      selectedUsers.includes(item.id) && styles.selectedUserItem
+    ]}
+    onPress={() => toggleUserSelection(item.id)}
+  >
+    {item.photoURL ? (
+      <Image
+        source={{ uri: item.photoURL }}
+        style={styles.userAvatarImage}
+      />
+    ) : (
+      <View style={styles.userAvatarPlaceholder}>
+        <Text style={styles.userInitial}>
+          {item.name.charAt(0).toUpperCase()}
+        </Text>
+      </View>
+    )}
+
+    <Text style={styles.userName}>{item.name}</Text>
+    {selectedUsers.includes(item.id) && (
+      <Ionicons name="checkmark-circle" size={24} color="#3f51b5" />
+    )}
+  </TouchableOpacity>
+);
+
+
 
     return (
         <Modal
@@ -273,6 +294,21 @@ const styles = StyleSheet.create({
       justifyContent: 'center',
       alignItems: 'center',
       paddingHorizontal: 32,
+    },
+    userAvatarImage: {
+  width: 40,
+  height: 40,
+  borderRadius: 20,
+  marginRight: 12,
+},
+    userAvatarPlaceholder: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: '#ccc',
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginRight: 12,
     },
     emptyStateText: {
       fontSize: 16,

@@ -1,6 +1,6 @@
 // app/(tabs)/profile.js
 import * as ImagePicker from 'expo-image-picker';
-import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -12,7 +12,8 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
-import { auth, firestore } from '../../firebaseConfig'; // ✅ Correct path
+import { auth, firestore } from '../../firebaseConfig'; // adjust if needed
+import { uploadProfilePicture } from '../../services/profileService';
 
 export default function ProfileScreen() {
   const [user, setUser] = useState(null);
@@ -22,35 +23,32 @@ export default function ProfileScreen() {
   const [photoURL, setPhotoURL] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // 1) Subscribe to Auth so we know when user is ready
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged(async (currentUser) => {
-      if (currentUser) {
-        setUser(currentUser);
-        const userRef = doc(firestore, 'Users', currentUser.uid);
-        try {
-          const docSnap = await getDoc(userRef);
-          if (docSnap.exists()) {
-            const data = docSnap.data();
-            setFirstName(data.firstName || '');
-            setLastName(data.lastName || '');
-            setDob(data.dob || '');
-            setPhotoURL(data.photoURL || null);
-          }
-        } catch (err) {
-          console.error('Error loading profile:', err);
+    const unsub = auth.onAuthStateChanged(async (u) => {
+      if (u) {
+        setUser(u);
+        // load from Firestore
+        const userRef = doc(firestore, 'Users', u.uid);
+        const snap = await getDoc(userRef);
+        if (snap.exists()) {
+          const data = snap.data();
+          setFirstName(data.firstName || '');
+          setLastName(data.lastName || '');
+          setDob(data.dob || '');
+          setPhotoURL(data.photoURL || null);
         }
       } else {
         setUser(null);
       }
       setLoading(false);
     });
-
-    return () => unsubscribe();
+    return () => unsub();
   }, []);
 
+  // 2) Save profile fields
   const handleSave = async () => {
     if (!user) return;
-
     const userRef = doc(firestore, 'Users', user.uid);
     try {
       await setDoc(userRef, {
@@ -61,7 +59,6 @@ export default function ProfileScreen() {
         photoURL,
         updatedAt: new Date().toISOString(),
       }, { merge: true });
-
       Alert.alert('Success', 'Profile updated.');
     } catch (err) {
       console.error('Failed to save profile:', err);
@@ -69,52 +66,32 @@ export default function ProfileScreen() {
     }
   };
 
+  // 3) Pick & upload via our service
   const pickImage = async () => {
+    if (!user) return;
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.7,
     });
+    if (result.canceled) return;
 
-    if (!result.canceled && user) {
-      const imageUri = result.assets[0].uri;
-      await uploadImage(imageUri);
+    setLoading(true);
+    try {
+      // uploadProfilePicture will:
+      //  • POST to Cloudinary
+      //  • update Firestore Users/<uid>.photoURL
+      //  • return the new secure_url
+      const newUrl = await uploadProfilePicture(user.uid, result.assets[0].uri);
+      setPhotoURL(newUrl);
+    } catch (err) {
+      console.error('Image upload failed:', err);
+      Alert.alert('Error', 'Failed to upload image.');
+    } finally {
+      setLoading(false);
     }
   };
-
-  const uploadImage = async (uri) => {
-  try {
-    const formData = new FormData();
-
-    formData.append('file', {
-      uri,
-      type: 'image/jpeg',
-      name: `${user.uid}_profile.jpg`,
-    });
-    formData.append('upload_preset', 'dotogether_preset'); // your preset name
-    formData.append('cloud_name', 'dpdgsaq56'); // your cloud name
-
-    const response = await fetch('https://api.cloudinary.com/v1_1/dpdgsaq56/image/upload', {
-      method: 'POST',
-      body: formData,
-    });
-
-    const data = await response.json();
-
-    if (data.secure_url) {
-      setPhotoURL(data.secure_url);
-      const userRef = doc(firestore, 'Users', user.uid);
-      await updateDoc(userRef, { photoURL: data.secure_url });
-    } else {
-      throw new Error('Cloudinary upload failed');
-    }
-  } catch (err) {
-    console.error('Cloudinary upload failed:', err);
-    Alert.alert('Upload Error', 'Could not upload photo.');
-  }
-};
-
 
   if (loading) {
     return <ActivityIndicator size="large" style={{ marginTop: 50 }} />;
@@ -145,23 +122,21 @@ export default function ProfileScreen() {
         onChangeText={setLastName}
       />
       <TextInput
-  placeholder="Date of Birth (dd/mm/yyyy)"
-  style={styles.input}
-  value={dob}
-  keyboardType="numeric"
-  onChangeText={(text) => {
-    const numericText = text.replace(/[^\d]/g, '');
-
-    let formatted = numericText;
-    if (numericText.length > 2 && numericText.length <= 4)
-      formatted = `${numericText.slice(0, 2)}/${numericText.slice(2)}`;
-    else if (numericText.length > 4)
-      formatted = `${numericText.slice(0, 2)}/${numericText.slice(2, 4)}/${numericText.slice(4, 8)}`;
-
-    setDob(formatted);
-  }}
-  maxLength={10}
-/>
+        placeholder="Date of Birth (dd/mm/yyyy)"
+        style={styles.input}
+        value={dob}
+        keyboardType="numeric"
+        maxLength={10}
+        onChangeText={(text) => {
+          const num = text.replace(/[^\d]/g, '');
+          let fmt = num;
+          if (num.length > 2 && num.length <= 4)
+            fmt = `${num.slice(0, 2)}/${num.slice(2)}`;
+          else if (num.length > 4)
+            fmt = `${num.slice(0, 2)}/${num.slice(2, 4)}/${num.slice(4, 8)}`;
+          setDob(fmt);
+        }}
+      />
 
       <TouchableOpacity onPress={handleSave} style={styles.saveButton}>
         <Text style={styles.saveButtonText}>Save Profile</Text>
@@ -171,48 +146,21 @@ export default function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    padding: 20,
-    marginTop: 40,
-    alignItems: 'center',
-  },
-  avatar: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    marginBottom: 20,
-  },
+  container: { padding: 20, marginTop: 40, alignItems: 'center' },
+  avatar: { width: 120, height: 120, borderRadius: 60, marginBottom: 20 },
   avatarPlaceholder: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: '#ccc',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 20,
+    width: 120, height: 120, borderRadius: 60,
+    backgroundColor: '#ccc', justifyContent: 'center',
+    alignItems: 'center', marginBottom: 20,
   },
-  avatarText: {
-    fontSize: 36,
-    color: '#fff',
-  },
+  avatarText: { fontSize: 36, color: '#fff' },
   input: {
-    width: '100%',
-    borderBottomWidth: 1,
-    borderColor: '#aaa',
-    paddingVertical: 8,
-    marginBottom: 20,
-    fontSize: 16,
+    width: '100%', borderBottomWidth: 1, borderColor: '#aaa',
+    paddingVertical: 8, marginBottom: 20, fontSize: 16,
   },
   saveButton: {
-    backgroundColor: '#007BFF',
-    padding: 14,
-    borderRadius: 10,
-    width: '100%',
-    alignItems: 'center',
+    backgroundColor: '#007BFF', padding: 14, borderRadius: 10,
+    width: '100%', alignItems: 'center',
   },
-  saveButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
-  },
+  saveButtonText: { color: '#fff', fontWeight: 'bold' },
 });
-

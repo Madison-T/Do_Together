@@ -1,295 +1,272 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Alert, Image, SafeAreaView, ScrollView, Share, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import {
+    ActivityIndicator,
+    Alert,
+    Image,
+    SafeAreaView,
+    ScrollView,
+    Share,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
+} from "react-native";
 import { useGroupContext } from "../contexts/GroupContext";
-import { auth } from '../firebaseConfig';
-import * as FirestoreService from '../hooks/useFirestore';
+import { auth } from "../firebaseConfig";
+import * as FirestoreService from "../hooks/useFirestore";
 import UserSearchModal from "./userSearchModal";
 
-export default function ViewGroup (){
-    const { groupId, groupName} = useLocalSearchParams();
-    const { leaveGroup, removeMember, loading, error} = useGroupContext();
+export default function ViewGroup() {
+  const { groupId, groupName } = useLocalSearchParams();
+  const { leaveGroup, removeMember } = useGroupContext();
 
-    const [groupDetails, setGroupDetails] = useState(null);
-    const [members, setMembers] = useState([]);
-    const [ activity, setActivity] = useState([]); //MAY NEED TO CHANGE
-    const [loadingData, setLoadingData] = useState(true);
-    const [isAddMemberModalVisible, setIsAddMemberModalVisible] = useState(false);
+  const [groupDetails, setGroupDetails] = useState(null);
+  const [members, setMembers] = useState([]);
+  const [activity, setActivity] = useState([]);
+  const [loadingData, setLoadingData] = useState(true);
+  const [isAddMemberModalVisible, setIsAddMemberModalVisible] = useState(false);
 
-    //Current user id
-    const currentUserId = auth.currentUser?.uid;
+  const currentUserId = auth.currentUser?.uid;
+  const isCreator = groupDetails?.createdBy === currentUserId;
 
-    //Check if the user is the creater of the group
-    const isCreator = groupDetails?.createdBy === currentUserId;
-
-    //function to fetch group details and member information
-    const fetchGroupData = async() =>{
-        setLoadingData(true);
-
-        try{
-            //check that the group exisits
-            const group = await FirestoreService.fetchGroupById(groupId);
-            setGroupDetails(group);
-
-            //Fetch member details
-            const memberDetails = await Promise.all(
-  (group.members || []).map(async (memberId) => {
+  const fetchGroupData = async () => {
+    setLoadingData(true);
     try {
-      const user = await FirestoreService.fetchUserById(memberId);
-      return {
-        id: memberId,
-        name: `${user?.firstName ?? 'Unknown'} ${user?.lastName ?? ''}`,
-        photoURL: user?.photoURL ?? null,
-      };
+      const group = await FirestoreService.fetchGroupById(groupId);
+      setGroupDetails(group);
+
+      const memberDetails = await Promise.all(
+        (group.members || []).map(async (memberId) => {
+          try {
+            const user = await FirestoreService.fetchUserById(memberId);
+            return {
+              id: memberId,
+              name: `${user?.firstName ?? "Unknown"} ${
+                user?.lastName ?? ""
+              }`.trim(),
+              photoURL: user?.photoURL ?? null,
+            };
+          } catch {
+            return { id: memberId, name: "Unknown User", photoURL: null };
+          }
+        })
+      );
+      setMembers(memberDetails);
+
+      const fetchActivities = await FirestoreService.fetchActivitiesByGroupId(
+        groupId
+      );
+      setActivity(fetchActivities || []);
     } catch (error) {
-      console.log("Error fetching member", error);
-      return {
-        id: memberId,
-        name: 'Unknown User',
-        photoURL: null,
-      };
+      console.error("Error fetching group details", error);
+    } finally {
+      setLoadingData(false);
     }
-  })
-);
+  };
 
+  useEffect(() => {
+    if (groupId) fetchGroupData();
+  }, [groupId]);
 
-            setMembers(memberDetails);
-
-            const fetchActivities = await FirestoreService.fetchActivitiesByGroupId(groupId);
-            setActivity(fetchActivities || []);
-        }catch(error){
-            console.log("Error fetching group details", error);
-        }finally{
-            setLoadingData(false);
-        }
-    };
-
-    useEffect(()=>{
-        if(groupId){
-            fetchGroupData();
-        }
-    }, [groupId]);
-
-    //this is the share code so that people can share links through email etc
-    const handleShareCode = async () =>{
-        try{
-            await Share.share({
-                message: `Join my group "${groupName}" in the DoTogether app. Use code: ${groupId}`,
-            });
-        }catch(error){
-            console.error("Error, could not share the group code", error);
-        }
-    };
-
-    //this is to leave the group as long as you aren't the creator
-    const handleLeaveGroup = async () =>{
-        try {
-            const result = await leaveGroup(groupId);
-
-            if (result.success) {
-                Alert.alert("Success", "Successfully left the group");
-                router.replace("/dashboard");
-            } else {
-                Alert.alert("Error", result.message || "Failed to leave group");
-            }
-        } catch (error) {
-            console.error("Error leaving group:", error);
-            Alert.alert("Error", "Failed to leave group. Please try again.");
-        }
-    };
-
-    //Handel removing a member (admin only)
-    const handleRemoveMember = async (memberId) => {
-        try {
-            const result = await removeMember(groupId, memberId);
-            if (result.success) {
-                //Update members locally
-                if (result.success) {
-                    setMembers(members.filter(member => member.id !== memberId));
-                    Alert.alert("Success", "Member removed successfully");
-                } else {
-                    Alert.alert("Error", result.message || "Failed to remove member");
-                }
-            } else {
-                Alert.alert("Error", result.message || "Failed to remove member");
-            }
-        } catch (error) {
-            console.error("Error removing member:", error);
-            Alert.alert("Error", "Failed to remove member. Please try again.");
-        }
+  const handleShareCode = async () => {
+    try {
+      await Share.share({
+        message: `Join my group "${groupName}" in the DoTogether app. Use code: ${groupId}`,
+      });
+    } catch {
+      console.error("Error sharing group code");
     }
+  };
 
-    // Remove member design
-    const removeMemberDesign = (member) => {
-        return isCreator && member.id !== currentUserId ? (
-            <TouchableOpacity 
-                style={styles.removeButton}
-                onPress={() => handleRemoveMember(member.id, member.name)}
-            >
-                <Ionicons name="person-remove-outline" size={20} color="#f44336" />
-            </TouchableOpacity>
-        ) : null;
-    };
-
-    //handling adding users to the group
-    const handleAddUsers = async (userIds) => {
-  try {
-    console.log("Trying to add users:", userIds); // check correct UIDs
-    const result = await FirestoreService.addUsersToGroup(groupId, userIds);
-
-    if (result.success) {
-      console.log("Added successfully, refreshing group...");
-      Alert.alert("Success", result.message);
-      await fetchGroupData(); // reload member info
-    } else {
-      console.log("Add failed:", result);
-      Alert.alert("Error", result.message || "Failed to add user");
+  const handleLeaveGroup = async () => {
+    try {
+      const result = await leaveGroup(groupId);
+      if (result.success) {
+        Alert.alert("Success", "Successfully left the group");
+        router.replace("/dashboard");
+      } else {
+        Alert.alert("Error", result.message || "Failed to leave group");
+      }
+    } catch {
+      Alert.alert("Error", "Failed to leave group. Please try again.");
     }
-  } catch (error) {
-    console.error("Error adding members:", error);
-    Alert.alert("Error", "Failed to add user. Check Firestore and console logs.");
-  }
-};
+  };
 
+  const handleRemoveMember = async (memberId) => {
+    try {
+      const result = await removeMember(groupId, memberId);
+      if (result.success) {
+        setMembers((prev) => prev.filter((m) => m.id !== memberId));
+        Alert.alert("Success", "Member removed successfully");
+      }
+    } catch {
+      Alert.alert("Error", "Failed to remove member. Please try again.");
+    }
+  };
 
+  const removeMemberDesign = (member) =>
+    isCreator && member.id !== currentUserId ? (
+      <TouchableOpacity
+        style={styles.removeButton}
+        onPress={() => handleRemoveMember(member.id)}
+      >
+        <Ionicons name="person-remove-outline" size={20} color="#f44336" />
+      </TouchableOpacity>
+    ) : null;
 
-    //TO DO STILL 
-    const handleCreateActivity = () =>{
-
-    };
-
-    if(loadingData){
-        return (
-            <SafeAreaView style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color="#3f51b5" />
-            </SafeAreaView>
+  // --- Updated here: close modal after updating members ---
+  const handleAddUsers = async (userIds) => {
+    try {
+      const result = await FirestoreService.addUsersToGroup(groupId, userIds);
+      if (result.success) {
+        const newMembers = await Promise.all(
+          userIds.map(async (uid) => {
+            const data = await FirestoreService.fetchUserById(uid);
+            return {
+              id: uid,
+              name: `${data?.firstName ?? "Unknown"} ${
+                data?.lastName ?? ""
+              }`.trim(),
+              photoURL: data?.photoURL ?? null,
+            };
+          })
         );
+        // 1) Append immediately
+        setMembers((prev) => [...prev, ...newMembers]);
+
+        // 2) Close the modal so you see the updated list
+        setIsAddMemberModalVisible(false);
+
+        // 3) Show success
+        Alert.alert("Success", result.message);
+      } else {
+        console.warn("Failed to add:", result.message);
+      }
+    } catch (err) {
+      console.error("Error adding members:", err);
     }
+  };
 
+  if (loadingData) {
     return (
-        <SafeAreaView style={styles.container}>
-            <ScrollView style={styles.scrollContainer}>
-                {/* Header */}
-                <View style={styles.header}>
-                    <TouchableOpacity
-                        style={styles.backButton}
-                        onPress = {()=> router.back()}
-                    >
-                        <Ionicons name="arrow-back" size={24} color="#3f51b5" />
-                    </TouchableOpacity>
-                    <Text style={styles.groupName}>{groupName}</Text>
-                </View>
-
-                {/*Group Description */}
-                {groupDetails?.description && (
-                    <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>Description</Text>
-                        <Text style={styles.description}>{groupDetails.description}</Text>
-                    </View>
-                )}
-
-                {/* Share Code Button */}
-                {groupId && (  // Changed from joinCode to joinId
-                    <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>Join Code</Text>
-                        <View style={styles.joinCodeContainer}>
-                            <Text style={styles.joinCodeText}>{groupId}</Text>
-                            <TouchableOpacity style={styles.shareButton} onPress={handleShareCode}>
-                                <Ionicons name="share-outline" size={20} color="#fff" />
-                                <Text style={styles.shareButtonText}>Share Group Code</Text>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-                )}
-
-                {/** Members Section */}
-                <View style={styles.section}>
-                    <View style={styles.sectionHeader}>
-                        <Text style={styles.sectionTitle}>Members ({members.length})</Text>
-                        {isCreator && (
-                            <TouchableOpacity
-                                style={styles.addMemberButton}
-                                onPress={() => setIsAddMemberModalVisible(true)}
-                            >
-                                <Ionicons name="person-add-outline" size={20} color="#3f51b5" />
-                                <Text style={styles.addMemberText}>Add Member</Text>
-                            </TouchableOpacity>
-                        )}
-                    </View>
-                    <View style={styles.membersList}>
-                        {members.map((member) => (
-                        <View key={member.id} style={styles.memberItem}>
-                            <View style={styles.memberInfo}>
-                                {member.photoURL ? (
-                                    <Image
-                                        source={{ uri: member.photoURL }}
-                                        style={styles.memberAvatarImage}
-                                    />
-                                    ) : (
-                                    <View style={styles.memberAvatarPlaceholder}>
-                                        <Text style={styles.memberInitial}>
-                                        {member.name.charAt(0).toUpperCase()}
-                                        </Text>
-                                    </View>
-                                    )}
-
-
-                                <Text style={styles.memberName}>
-                                    {member.name} {member.id === groupDetails?.createdBy && '(Creator)'} 
-                                    {member.id === currentUserId && ' (You)'}
-                                </Text>
-                            </View>
-                            {removeMemberDesign(member)}
-                        </View>
-                        ))}
-                    </View>
-                </View>
-
-                {/** Activities Section*/}
-                <View style={styles.section}>
-                    <View style={styles.sectionHeader}>
-                        <Text style={styles.sectionTitle}>Activities</Text>
-                        <TouchableOpacity style={styles.createActivityButton} onPress={handleCreateActivity}>
-                            <Ionicons name="add-circle-outline" size={20} color="#3f51b5" />
-                            <Text style={styles.createActivityText}>Create Activity</Text>
-                        </TouchableOpacity>
-                    </View>
-
-                    {activity.length === 0 ? (
-                        <View style={styles.emptyActivitiesContainer}>
-                            <Text style={styles.emptyActivitiesText}>No Activities yet</Text>
-                            <Text style={styles.emptyActivitiesSubtext}>Create an activity to get started</Text>
-                        </View>
-                    ):(
-                        <View style={styles.activityList}>
-                            {/**TO DO */}
-                        </View>
-                    )}
-                </View>
-
-                {/** Leave Group */}
-                {!isCreator && (
-                    <TouchableOpacity style={styles.leaveButton} onPress={handleLeaveGroup}>
-                        <Ionicons name="exit-outline" size={20} color="#fff" />
-                        <Text style={styles.leaveButtonText}>Leave Group</Text>
-                    </TouchableOpacity>
-                )}
-            </ScrollView>
-
-            {/**User Search Modal */}
-            <UserSearchModal
-                visible={isAddMemberModalVisible}
-                onClose={() => setIsAddMemberModalVisible(false)}
-                onAddUser={async(userIds) =>{
-                    await handleAddUsers(userIds);
-                    setIsAddMemberModalVisible(false);
-                }}
-                currentMembers={members.map(member=>member.id)}
-                groupId={groupId}
-            />
-        </SafeAreaView>
+      <SafeAreaView style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#3f51b5" />
+      </SafeAreaView>
     );
+  }
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <ScrollView style={styles.scrollContainer}>
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={styles.backButton}
+          >
+            <Ionicons name="arrow-back" size={24} color="#3f51b5" />
+          </TouchableOpacity>
+          <Text style={styles.groupName}>{groupName}</Text>
+        </View>
+
+        {/* Description */}
+        {groupDetails?.description && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Description</Text>
+            <Text style={styles.description}>
+              {groupDetails.description}
+            </Text>
+          </View>
+        )}
+
+        {/* Join Code */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Join Code</Text>
+          <View style={styles.joinCodeContainer}>
+            <Text style={styles.joinCodeText}>{groupId}</Text>
+            <TouchableOpacity
+              style={styles.shareButton}
+              onPress={handleShareCode}
+            >
+              <Ionicons name="share-outline" size={20} color="#fff" />
+              <Text style={styles.shareButtonText}>
+                Share Group Code
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Members */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>
+              Members ({members.length})
+            </Text>
+            {isCreator && (
+              <TouchableOpacity
+                style={styles.addMemberButton}
+                onPress={() => setIsAddMemberModalVisible(true)}
+              >
+                <Ionicons
+                  name="person-add-outline"
+                  size={20}
+                  color="#3f51b5"
+                />
+                <Text style={styles.addMemberText}>Add Member</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+          <View style={styles.membersList}>
+            {members.map((member) => (
+              <View key={member.id} style={styles.memberItem}>
+                <View style={styles.memberInfo}>
+                  {member.photoURL ? (
+                    <Image
+                      source={{ uri: member.photoURL }}
+                      style={styles.memberAvatarImage}
+                    />
+                  ) : (
+                    <View style={styles.memberAvatarPlaceholder}>
+                      <Text style={styles.memberInitial}>
+                        {member.name.charAt(0).toUpperCase()}
+                      </Text>
+                    </View>
+                  )}
+                  <Text style={styles.memberName}>
+                    {member.name}
+                    {member.id === groupDetails?.createdBy && " (Creator)"}
+                    {member.id === currentUserId && " (You)"}
+                  </Text>
+                </View>
+                {removeMemberDesign(member)}
+              </View>
+            ))}
+          </View>
+        </View>
+
+        {/* Leave Group */}
+        {!isCreator && (
+          <TouchableOpacity
+            style={styles.leaveButton}
+            onPress={handleLeaveGroup}
+          >
+            <Ionicons name="exit-outline" size={20} color="#fff" />
+            <Text style={styles.leaveButtonText}>Leave Group</Text>
+          </TouchableOpacity>
+        )}
+      </ScrollView>
+
+      <UserSearchModal
+        visible={isAddMemberModalVisible}
+        onClose={() => setIsAddMemberModalVisible(false)}
+        onAddUser={handleAddUsers} // just the handler
+        currentMembers={members.map((m) => m.id)}
+        groupId={groupId}
+      />
+    </SafeAreaView>
+  );
 }
 
 const styles = StyleSheet.create({
