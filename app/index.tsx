@@ -1,7 +1,10 @@
 import { useRouter } from 'expo-router';
 import React, { useEffect } from 'react';
-import { ActivityIndicator, Button, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import AppButton from '../components/ui/AppButton';
 import { useAuth } from '../contexts/AuthContext';
+import { theme } from './theme';
+
 
 const Index = () => {
   const router = useRouter();
@@ -28,9 +31,9 @@ const Index = () => {
 
       <Text style={styles.subtitle}>Please sign up or log in to get started</Text>
 
-      <Button title="Go to Sign Up" onPress={() => router.push('../signup')} />
-      <View style={{ marginVertical: 10 }} />
-      <Button title="Go to Login" onPress={() => router.push('../login')} />
+      <AppButton title="Go to Sign Up" onPress={() => router.push('../signup')} />
+      <View style={{ marginVertical: theme.spacing.sm }} />
+      <AppButton title="Go to Login"  onPress={() => router.push('../login')} />
     </View>
   );
 };
