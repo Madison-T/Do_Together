@@ -1,50 +1,78 @@
-# Welcome to your Expo app 👋
+# DoTogether 
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+**DoTogether** is a collaborative decision-making mobile app built using Expo + Firebase. It is designed for friend groups to making choosing activities (like where to eat or what to watch) fast and fun using swipe-based voting.
 
-## Get started
+---
 
-1. Install dependencies
+##  Features
 
-   ```bash
-   npm install
-   ```
+* Swipe-based activity voting
+* Group creation and management
+* Curated and custom activity lists
+* Voting sessions with start/end timers
+* Notifications
+* Integration with TMDB (move database) and Google Places APIs
+* Cross-platform: works on both Android and iOS
 
-2. Start the app
+---
 
-   ```bash
-   npx expo start
-   ```
+## 🛠 Installation
 
-In the output, you'll find options to open the app in a
+Before you begin, make sure you have [Node.js](https://nodejs.org/) and [Expo CLI](https://docs.expo.dev/get-started/installation/) installed.
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+### 1. Clone the repository
 
 ```bash
-npm run reset-project
+git clone https://github.com/your-username/dotogether.git
+cd dotogether
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+### 2. Install dependencies
 
-## Learn more
+```bash
+npm install
+```
 
-To learn more about developing your project with Expo, look at the following resources:
+### 3. Add the required `apiKeys.js` file
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+> ⚠️ The app depends on external APIs (TMDB, Google Places) and Firebase configuration.
+> You **must** obtain the `apiKeys.js` file to run the app.
 
-## Join the community
+**Where to get it:**
 
-Join our community of developers creating universal apps.
+* Check the **Documentation** column on the project’s [Trello Board](https://trello.com/b/vmNZ7Pe5/2025s1w101dotogether)
+* Or contact the **repository owner** for access
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+**Where to place it:**
+Place the `apiKeys.js` file in the **root directory** of the project (same level as `firebaseConfig.js`)
+
+---
+
+### 4. Start the app
+
+```bash
+npx expo start
+```
+
+Open the app on your device using:
+
+*  Expo Go (scan QR)
+*  Android emulator
+*  iOS simulator
+*  Development build
+
+---
+
+## 📚 Learn More
+
+* [Expo Documentation](https://docs.expo.dev/)
+* [TMDB API Docs](https://developer.themoviedb.org/docs)
+* [Google Places API](https://developers.google.com/maps/documentation/places/web-service/overview)
+* [Firebase Docs](https://firebase.google.com/docs)
+
+---
+
+## 🤝 Contributing
+
+If you'd like to contribute to DoTogether, feel free to open issues or submit pull requests.
+Let’s Do it Together!
