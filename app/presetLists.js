@@ -25,7 +25,7 @@ export default function PresetLists() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#3f51b5" />
+        <ActivityIndicator testID="loading-indicator" size="large" color="#3f51b5" />
       </View>
     );
   }
