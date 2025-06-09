@@ -11,7 +11,7 @@
 * Curated and custom activity lists
 * Voting sessions with start/end timers
 * Notifications
-* Integration with TMDB (move database) and Google Places APIs
+* Integration with TMDB (movie database) and Google Places APIs
 * Cross-platform: works on both Android and iOS
 
 ---
