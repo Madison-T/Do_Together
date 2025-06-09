@@ -23,6 +23,7 @@ const SCREEN_WIDTH = Dimensions.get('window').width;
 const SWIPE_THRESHOLD = SCREEN_WIDTH * 0.25;
 
 export default function SwipeScreen() {
+  console.log('Swipe Scrren: component render start');
   const { user } = useAuth();
   const { groups } = useGroupContext();
   const { votes, castVote } = useVotesContext();
@@ -59,9 +60,9 @@ export default function SwipeScreen() {
   useEffect(() => {
     if (groups.length > 0) {
       const initialGroupId = passedGroupId || groups[0].id;
-      setSelectedGroupId(groups[0].id);
+      setSelectedGroupId(initialGroupId);
     }
-  }, [groups]);
+  }, [groups, passedGroupId]);
 
   useEffect(() => {
   const loadSessions = async () => {
@@ -88,20 +89,39 @@ export default function SwipeScreen() {
 
 
   useEffect(() => {
-  if (!selectedSessionId) return;
+  if (!selectedSessionId){
+    setSessionActivities([]);
+    return;
+  }
   const session = votingSessions.find((s) => s.id === selectedSessionId);
-  if (!session) return;
+  if (!session){
+    setSessionActivities([]);
+    return;
+  }
 
   const votedIds = votes.map((v) => v.activityId);
-  const activityObjs = session.activities.map((title, index) => ({
-    id: `${selectedSessionId}_${index}`,
-    name:
-      typeof title === 'string'
-        ? title
-        : title.title || title.originalTitle || title.name || 'Untitled',
-    description: '',
-  }));
+  console.log('Current voted IDs:', votedIds);
+  const activityObjs = (session.activities || []).map((activity, index) => {
+    const activityId = `${selectedSessionId}_${index}`;
+    let name = 'Untitled';
+    let description = '';
+
+    if(typeof activity === 'string'){
+      name = activity;
+    }else if(typeof activity === 'object'){
+      name = activity.title || activity.originalTitle || activity.name || activity.label || 'Untitled';
+      description = activity.overview || activity.description || activity.address || '';
+    }
+    return {
+      id: activityId,
+      name,
+      description,
+      originalData: activity
+    };
+  });
+  console.log('Processed activities:', activityObjs);
   const visible = activityObjs.filter((a) => !votedIds.includes(a.id));
+  console.log('Visible activities after filtering', visible);
   setSessionActivities(visible);
   position.setValue({ x: 0, y: 0 }); // Reset card position when session changes
 }, [selectedSessionId, votes, votingSessions]);
@@ -130,23 +150,51 @@ export default function SwipeScreen() {
   };
 
   const onSwipeComplete = (vote) => {
+    console.log(`Swipe completed ${vote}`);
     const currentActivityId = sessionActivities[0]?.id;
     if (currentActivityId) {
-      castVote(currentActivityId, vote);
+      console.log(`Current activity id ${currentActivityId}`);
+      castVote(currentActivityId, vote, selectedGroupId);
     }
     setSessionActivities((prev) => prev.slice(1));
     position.setValue({ x: 0, y: 0 });
   };
 
   const renderCard = () => {
-    if (sessionActivities.length === 0) {
+    if(sessionActivities.length === 0) {
+      if (selectedGroupId && sessionActivities.length === 0) {
+        return (
+          <View style={styles.noMoreCards}>
+            <Ionicons name="megaphone-outline" size={64} color="#ccc" />
+            <Text style={styles.noMoreCardsText}>No more activities</Text>
+            <Text style={styles.noMoreCardsSubText}>
+              Create a new voting session for this group
+            </Text>
+          </View>
+        );
+      }
+      if(!selectedSessionId){
+        return (
+          <View style={styles.noMoreCards}>
+            <Ionicons name="list-outline" size={64} color="#ccc" />
+            <Text style={styles.noMoreCardsText}>No session selected</Text>
+            <Text style={styles.noMoreCardsSubText}>
+              Please select an active voting session.
+            </Text>
+          </View>
+        );
+      }
       return (
         <View style={styles.noMoreCards}>
-          <Text style={styles.noMoreCardsText}>No more activities</Text>
+          <Ionicons name="checkmark-done-outline" size={64} color="#ccc" />
+          <Text style={styles.noMoreCardsText}>No activities left</Text>
+          <Text style={styles.noMoreCardsSubText}>
+            You have voted on all activities in this session.
+          </Text>
         </View>
       );
     }
-
+    
     const currentActivity = sessionActivities[0];
 
     return (
@@ -187,6 +235,7 @@ export default function SwipeScreen() {
   onChange={(option) => {
     setSelectedGroupId(option.key);
     setVotingSessions([]);
+    setSelectedSessionId(null); // reset session
     setSessionActivities([]);
   }}
   style={styles.modalSelector}
@@ -212,6 +261,7 @@ export default function SwipeScreen() {
     setSessionActivities([]); // reset cards
   }}
   style={styles.modalSelector}
+  disabled={votingSessions.length === 0}
 />
         </View>
 

@@ -30,12 +30,6 @@ const VotingSessionModal = ({visible, onClose, onSessionCreated, onShowTMDBGener
     const {userLists = [], tmdbLists = []} = useUserLists();
     const {presetLists = []} = usePresetLists();
 
-    useEffect(()=>{
-        if(visible && selectedCategory){
-            loadLists();
-        }
-    }, [visible, selectedCategory, loadLists]);
-
     const loadLists = useCallback(async () => {
         setLoading(true);
         try{
@@ -81,6 +75,12 @@ const VotingSessionModal = ({visible, onClose, onSessionCreated, onShowTMDBGener
             setLoading(false);
         }
     }, [selectedCategory, userLists, tmdbLists, presetLists]);
+    
+    useEffect(()=>{
+        if(visible && selectedCategory){
+            loadLists();
+        }
+    }, [visible, selectedCategory, loadLists]);
 
     const handleListSelect = (list) => {
         router.push({

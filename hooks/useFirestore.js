@@ -220,10 +220,12 @@ export const addVote = async (voteId, groupId, userId, vote) => {
 
 export const fetchVotes = async (groupId) => {
   try {
-    const snapshot = await getDocs(collection(firestore, voteCollection));
-    return snapshot.docs
-      .map(doc => ({ id: doc.id, ...doc.data() }))
-      .filter(vote => vote.groupId === groupId);
+    console.log('Fetching votes for group:', groupId);
+    const q = query(collection(firestore, voteCollection), where('groupId', '==', groupId));
+    const snapshot = await getDocs(q);
+    const votes = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()})).filter(vote => vote.groupId === groupId);
+    console.log('Group votes retrieved:', votes);
+    return votes;
   } catch (error) {
     console.error('Error fetching votes: ', error);
   }
@@ -251,24 +253,33 @@ export const deleteVote = async (voteId) => {
 
 export const voteOnActivity = async (userId, activityId, groupId, voteType) => {
   try {
-    await setDoc(doc(firestore, voteCollection, `${userId}_${activityId}`), {
+    const voteId = `${userId}_${activityId}`;
+    console.log('Saving vote with ID:', voteId);
+
+    const voteData = {
       userId,
       activityId,
       groupId,
       vote: voteType,
       createdAt: new Date().toISOString(),
-    });
+    };
+
+    console.log('Vote data', voteData);
+    await setDoc(doc(firestore, voteCollection, voteId), voteData);
   } catch (error) {
     console.error('Error voting on activity:', error);
+    throw error;
   }
 };
 
 export const fetchUserVotes = async (userId) => {
   try {
-    const snapshot = await getDocs(collection(firestore, voteCollection));
-    return snapshot.docs
-      .map(doc => doc.data())
-      .filter(vote => vote.userId === userId);
+    console.log('Fetching votes for user:', userId);
+    const q = query(collection(firestore, voteCollection), where('userId', '==', userId));
+    const snapshot = await getDocs(q);
+    const votes = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()}));
+    return votes;
+
   } catch (error) {
     console.error('Error fetching votes:', error);
     return [];

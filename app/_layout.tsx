@@ -6,6 +6,7 @@ import { GroupProvider } from '../contexts/GroupContext';
 import { NotificationProvider } from '../contexts/NotificationContext';
 import { PresetListsProvider } from '../contexts/PresetListsContext';
 import { UserListsProvider } from '../contexts/UserListsContext';
+import { VotesProvider } from '../contexts/VotesContext';
 import { VotingSessionProvider } from '../contexts/VotingSessionContext';
 
 const LayoutInner = () => {
@@ -20,7 +21,9 @@ const Layout = () => {
           <VotingSessionProvider>
             <NotificationProvider>
               <UserListsProvider>
-                <LayoutInner />
+                <VotesProvider>
+                  <LayoutInner />
+                </VotesProvider>
               </UserListsProvider>
             </NotificationProvider>
           </VotingSessionProvider>

@@ -1,8 +1,8 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import {
-    fetchUserVotes,
-    fetchVotes,
-    voteOnActivity,
+  fetchUserVotes,
+  fetchVotes,
+  voteOnActivity,
 } from '../hooks/useFirestore';
 import { useAuth } from './AuthContext';
 import { useGroupContext } from './GroupContext';
@@ -13,7 +13,6 @@ export const useVotesContext = () => useContext(VotesContext);
 export const VotesProvider = ({ children }) => {
   const { user } = useAuth();
   const { groups } = useGroupContext();
-  const currentGroup = groups?.[0];
 
   const [votes, setVotes] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -21,12 +20,12 @@ export const VotesProvider = ({ children }) => {
 
   // Load user-specific votes for the current group
   useEffect(() => {
-    if (user && currentGroup) {
+    if (user) {
       loadUserVotes(user.uid);
     } else {
       setVotes([]);
     }
-  }, [user, currentGroup]);
+  }, [user]);
 
   const loadUserVotes = async (userId) => {
     setLoading(true);
@@ -42,11 +41,26 @@ export const VotesProvider = ({ children }) => {
     }
   };
 
-  const castVote = async (activityId, voteType) => {
+  const castVote = async (activityId, voteType, groupId) => {
+    if(!user || !activityId || !groupId){
+      console.error('Missing required parameters for voting:', {user, activityId, groupId});
+    }
     setLoading(true);
     setError(null);
     try {
-      await voteOnActivity(user.uid, activityId, currentGroup.id, voteType);
+      console.log('Casting vote:', {userId: user.uid, activityId, groupId, voteType});
+
+      await voteOnActivity(user.uid, activityId, groupId, voteType);
+
+      const newVote = {
+        userId: user.uid,
+        activityId,
+        groupId,
+        vote: voteType,
+        createdAt: new Date().toISOString(),
+      };
+      setVotes(prevVotes => [...prevVotes.filter(v => v.activityId !== activityId), newVote]);
+
       await loadUserVotes(user.uid); // refresh local state
     } catch (err) {
       setError('Failed to cast vote');
@@ -56,12 +70,14 @@ export const VotesProvider = ({ children }) => {
     }
   };
 
-  const getGroupVotes = async () => {
+  const getGroupVotes = async (groupId) => {
     setLoading(true);
     setError(null);
     try {
-      const groupVotes = await fetchVotes(currentGroup.id);
-      return groupVotes;
+      console.log('Fetching votes for group:', groupId);
+      const groupVotes = await fetchVotes(groupId);
+      console.log('Retrieved group votes:', groupVotes);
+      return groupVotes || [];
     } catch (err) {
       setError('Failed to fetch group votes');
       console.error('VotesContext error:', err);

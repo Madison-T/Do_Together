@@ -15,7 +15,6 @@ import { useAuth } from '../../../contexts/AuthContext';
 import { useGroupContext } from '../../../contexts/GroupContext';
 import { useVotesContext } from '../../../contexts/VotesContext';
 import {
-    fetchVotes,
     fetchVotingSessionsByGroup
 } from '../../../hooks/useFirestore';
 
@@ -90,37 +89,41 @@ export default function ResultsScreen() {
     },
 
     getActivityName: (activity) => {
-      return activity.title || activity.name || 'Unknown Activity';
+      if(typeof activity === 'string'){
+        return activity;
+      }
+      if(typeof activity === 'object' && activity){
+        return activity.title || activity.originalTitle || activity.name || activity.label || 'Unknown Activity';
+      }
+      return 'Unknown Activity';
     },
 
     getActivityDescription: (activity) => {
-      return activity.overview || activity.description || activity.address || '';
+      if(typeof activity === 'string'){
+        return '';
+      }
+      if(typeof activity === 'object' && activity){
+        return activity.overview || activity.description || activity.address || '';
+      }
+      return '';
     },
 
     doIdsMatch: (activityId, voteActivityId) => {
-      if (activityId === voteActivityId) return true;
-      
-      const activityStr = String(activityId);
-      const voteStr = String(voteActivityId);
-      
-      if (activityStr === voteStr) return true;
-      if (voteStr.endsWith(`_${activityStr}`)) return true;
-      
-      const voteIdParts = voteStr.split('_');
-      if (voteIdParts.length >= 3) {
-        const voteIndex = voteIdParts[voteIdParts.length - 1];
-        if (activityStr === voteIndex) return true;
-      }
-      
-      return false;
+      return String(activityId) === String(voteActivityId);
     }
   }), []);
 
   // Calculate results for a voting session with improved performance
   const calculateSessionResults = useCallback((session, allGroupVotes) => {
+    console.log('====Calcultating Results=====');
+    console.log('Session:', session.name || session.id);
+    console.log('All group votes:', allGroupVotes);
+
     const activities = session.activities || session.selectedItems || session.items || [];
+    console.log('Session activities:', activities);
     
     if (!activities || activities.length === 0) {
+        console.log('No activities found in session');
       return {
         winner: null,
         totalVotes: 0,
@@ -134,8 +137,9 @@ export default function ResultsScreen() {
     const uniqueVoters = new Set();
     
     // Initialize vote counts for all activities
-    activities.forEach((activity) => {
-      const activityId = sessionHelpers.getActivityId(activity);
+    activities.forEach((activity, index) => {
+      const activityId = `${session.id}_${index}`;
+      console.log(`Initialising activity ${index}: ${activityId}`);
       activityVotes.set(activityId, {
         activity: activity,
         yesVotes: 0,
@@ -146,13 +150,19 @@ export default function ResultsScreen() {
       });
     });
 
+    console.log('Initialising activity vote map:', Array.from(activityVotes.keys()));
+
     // Filter and count votes that match this session's activities
     const sessionVotes = allGroupVotes.filter(vote => {
       const voteActivityId = vote.activityId;
-      return Array.from(activityVotes.keys()).some(activityId => 
-        sessionHelpers.doIdsMatch(activityId, voteActivityId)
+      const hasMatch = Array.from(activityVotes.keys()).some(activityId => 
+        activityId === voteActivityId
       );
+      console.log(`Vote ${voteActivityId} matches session activities: ${hasMatch}`);
+      return hasMatch;
     });
+
+    console.log(`Found ${sessionVotes.length} votes for this session:`, sessionVotes);
 
     sessionVotes.forEach((vote) => {
       const voterId = vote.userId || 'anonymous';
@@ -160,12 +170,8 @@ export default function ResultsScreen() {
       
       uniqueVoters.add(voterId);
       
-      const matchingActivityId = Array.from(activityVotes.keys()).find(activityId => 
-        sessionHelpers.doIdsMatch(activityId, voteActivityId)
-      );
-      
-      if (matchingActivityId && activityVotes.has(matchingActivityId)) {
-        const activityData = activityVotes.get(matchingActivityId);
+      if (activityVotes.has(voteActivityId)) {
+        const activityData = activityVotes.get(voteActivityId);
         activityData.totalVotes++;
         activityData.voters.add(voterId);
         activityData.votes.push(vote);
@@ -175,6 +181,12 @@ export default function ResultsScreen() {
         } else if (vote.vote === 'no') {
           activityData.noVotes++;
         }
+
+        console.log(`Updated votes for ${voteActivityId}:`, {
+            yes: activityData.yesVotes,
+            no: activityData.noVotes,
+            total: activityData.totalVotes
+        });
       }
     });
 
@@ -199,7 +211,7 @@ export default function ResultsScreen() {
     const totalVotes = sessionVotes.length;
     const totalParticipants = uniqueVoters.size;
 
-    return {
+    const results = {
       winner: winner && winner.yesVotes > 0 ? {
         activity: winner.activity,
         yesVotes: winner.yesVotes,
@@ -213,6 +225,11 @@ export default function ResultsScreen() {
       allResults: sortedResults,
       hasVotes: totalVotes > 0
     };
+
+    console.log('Final results:', results);
+    console.log('=== End Calculation ===');
+
+    return results;
   }, [sessionHelpers]);
 
   // Load completed voting sessions with improved error handling
@@ -234,11 +251,21 @@ export default function ResultsScreen() {
           const groupSessions = await fetchVotingSessionsByGroup(group.id);
           const completedGroupSessions = groupSessions.filter(sessionHelpers.isSessionCompleted);
           
+          const allVotesForThisGroup = await getGroupVotes(group.id);
+          console.log(`Group ${group.name} (${group.id}):`);
+          console.log(`- Found ${groupSessions.length} total Sessions`);
+          console.log(`- Found ${completedGroupSessions.length} completed sessions`);
+          console.log(`- Found ${allVotesForThisGroup.length} votes for this group`);
+          console.log('All votes:', allVotesForThisGroup);
           // Process sessions in parallel
           const sessionPromises = completedGroupSessions.map(async (session) => {
             try {
-              const allGroupVotes = await fetchVotes(group.id);
-              const sessionResults = calculateSessionResults(session, allGroupVotes);
+              //const allGroupVotes = await fetchVotes(group.id);
+              console.log(`Processing session: ${session.name || session.id}`);
+              console.log('Session activities:', session.activities);
+              console.log('Session data:', session);
+              const sessionResults = calculateSessionResults(session, allVotesForThisGroup);
+              
               
               return {
                 ...session,

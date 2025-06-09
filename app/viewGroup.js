@@ -11,9 +11,10 @@ import {
   TouchableOpacity,
   View
 } from "react-native";
- 
+
 import { useGroupContext } from "../contexts/GroupContext";
 import { useUserLists } from "../contexts/UserListsContext";
+import { useVotesContext } from "../contexts/VotesContext";
 import { auth } from "../firebaseConfig";
 import * as FirestoreService from "../hooks/useFirestore";
  
@@ -26,6 +27,7 @@ export default function ViewGroup() {
   const { groupId, groupName } = useLocalSearchParams();
   const { leaveGroup, removeMember } = useGroupContext();
   const { createTMDBList } = useUserLists();
+  const {votes} = useVotesContext();
  
   const [groupDetails, setGroupDetails] = useState(null);
   const [members, setMembers] = useState([]);
@@ -72,6 +74,21 @@ export default function ViewGroup() {
             setLoadingData(false);
         }
     };
+
+    useEffect(() => {
+      if(votingSessions.length > 0 && votes){
+        const updatedSessions = votingSessions.map(session => {
+          const sessionVotes = votes.filter(
+            vote => vote.activityId.startWith(`${session.id}`)
+          );
+          return {
+            ...session,
+            calculatedVoteCount: sessionVotes.length
+          };
+      });
+      setVotingSessions(updatedSessions);
+      }
+    }, [votes]);
  
     useEffect(()=>{
         if(groupId){
@@ -148,7 +165,8 @@ export default function ViewGroup() {
   const handleCreateVotingSession = () => {
     setIsVotingSessionModalVisible(true);
   };
- 
+
+  
   const handleTMDBListCreated = async () => {
     try {
       await fetchGroupData();
@@ -291,7 +309,7 @@ const isExpired = sessionEndMillis > 0 && Date.now() > sessionEndMillis;
         <Text style={styles.votingSessionDescription}>
           {session.description || "No description"}
         </Text>
-        <Text style={styles.participantsText}>{voteCount} votes cast</Text>
+        <Text style={styles.participantsText}>{currentVoteCount} votes cast</Text>
       </View>
       <TouchableOpacity
         style={styles.votingSessionButton}
@@ -465,6 +483,11 @@ const isExpired = sessionEndMillis > 0 && Date.now() > sessionEndMillis;
               {votingSessions.map((session) => {
                 const now = Date.now();
                 let sessionEndMillis = 0;
+
+                const currentVoteCount = session.calculatedVoteCount !== undefined
+    ? session.calculatedVoteCount
+    : 0;
+ 
  
                 if (session?.endTime?.seconds) {
                   sessionEndMillis = session.endTime.seconds * 1000;
