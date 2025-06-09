@@ -1,6 +1,6 @@
 import { MaterialIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { FlatList, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useNotificationContext } from '../contexts/NotificationContext';
 
@@ -314,3 +314,5 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
 });
+
+export default NotificationSystem;

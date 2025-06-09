@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { useUserLists } from '../contexts/UserListsContext';
+import { listCategories, useUserLists } from '../contexts/UserListsContext';
 
 export default function CreateListScreen() {
     const router = useRouter();
@@ -10,6 +10,8 @@ export default function CreateListScreen() {
     const [title, setTitle] = useState('');
     const [activities, setActivities] = useState(['']);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [selectedCategory, setSelectedCategory] = useState(null);
+    const [errorMessage, setErrorMessage] = useState('');
 
     const handleAddActivity = () => {
         setActivities([...activities, '']);
@@ -30,6 +32,8 @@ export default function CreateListScreen() {
     };
 
     const handleCreateList = async () => {
+        setErrorMessage('');
+
         if (!title.trim()) {
             Alert.alert('Error', 'Please enter a list title');
             return;
@@ -44,26 +48,29 @@ export default function CreateListScreen() {
         try{
             setIsSubmitting(true);            
 
-            const result = await createList(title, activities);
+            const filteredActivities = activities.filter(activity => activity.trim() !== '');
+            const result = await createList(title, filteredActivities, selectedCategory);
 
             if(result.success){
                 setTitle('');
                 setActivities([]);
+                setSelectedCategory(null);
                 setIsSubmitting(false);
                 router.push({
                     pathname: '/viewLists',
                     params: {
                         listId: result.id,
-                        listType: 'user',
+                        listType: 'regular',
                     }
                 });
             }else{
                 setIsSubmitting(false);
-                Alert.alert('Error', result.error || 'Failed to create lists. Please try again.');
+                setErrorMessage(result.error || 'Failed to create list. Please try again');
             }
         }catch(error){
             console.error("Error in create list flow:", error);
             setIsSubmitting(false);
+            setErrorMessage('An unexpected error occured. Please try again');
         }
 
     };
@@ -72,15 +79,69 @@ export default function CreateListScreen() {
         <ScrollView style={styles.container}>
             <Text style={styles.title}>Create New List</Text>
             
+            {/** Display error message if there is one */}
+            {errorMessage ? (
+                <View style={styles.errorContainer}>
+                    <Ionicons name="close-circle" size={24} color="#d32f2f" />
+                    <Text style={styles.errorText}>{errorMessage}</Text>
+                </View>
+            ): null}
+
             <View style={styles.formGroup}>
                 <Text style={styles.label}>List Title</Text>
                 <TextInput
                     style={styles.input}
                     value={title}
-                    onChangeText={setTitle}
+                    onChangeText={(text) =>{
+                        setTitle(text);
+                        setErrorMessage('');
+                    }}
                     placeholder="Enter list title"
                     maxLength={50}
                 />
+            </View>
+
+            <View style={styles.formGroup}>
+                <Text style={styles.label}>Category (Optional)</Text>
+                <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    style={styles.categoriesContainer}
+                    contentContainerStyle={styles.categoriesContent}
+                >
+                    {listCategories.map((category) => (
+                        <TouchableOpacity
+                            key={category.id}
+                            style={[
+                                styles.categoryChip,
+                                selectedCategory?.id === category.id && styles.selectedCategoryChip
+                            ]}
+                            onPress={() => setSelectedCategory(category)}
+                        >
+                            <Ionicons 
+                                name={category.icon}
+                                size={16}
+                                color={selectedCategory?.id === category.id ? '#fff': category.color}
+                            />
+                            <Text style = {[
+                                styles.categoryChipText,
+                                selectedCategory?.id === category.id && styles.selectedCategoryChipText
+                            ]}>
+                                {category.name}
+                            </Text>
+                        </TouchableOpacity>
+                    ))}
+                </ScrollView>
+                {
+                    selectedCategory && (
+                        <TouchableOpacity
+                            style={styles.clearCategoryButton}
+                            onPress={() => setSelectedCategory(null)}
+                        >
+                            <Text style={styles.clearCategoryText}>Clear category</Text>
+                        </TouchableOpacity>
+                    )
+                }
             </View>
             
             <View style={styles.formGroup}>
@@ -235,5 +296,61 @@ const styles = StyleSheet.create({
         color: 'white',
         fontSize: 16,
         fontWeight: '500',
+    },
+    errorContainer:{
+        backgroundColor: 'white',
+        padding: 10,
+        borderRadius: 8,
+        marginBottom: 20,
+        borderWidth: 3,
+        borderColor: '#d32f2f',
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    errorText:{
+        marginLeft: 10,
+        color: 'black',
+        fontSize: 14,
+        textAlign: 'center',
+    },
+    categoriesContainer: {
+        flexDirection: 'row',
+    },
+    categoriesContent: {
+        paddingHorizontal: 4,
+    },
+    categoryChip: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        marginRight: 8,
+        backgroundColor: '#fff',
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: '#ddd',
+    },
+    selectedCategoryChip: {
+        backgroundColor: '#3f51b5',
+        borderColor: '#3f51b5',
+    },
+    categoryChipText: {
+        fontSize: 12,
+        fontWeight: '500',
+        color: '#666',
+        marginLeft: 4,
+    },
+    selectedCategoryChipText: {
+        color: '#fff',
+    },
+    clearCategoryButton: {
+        alignSelf: 'flex-start',
+        marginTop: 8,
+        paddingVertical: 4,
+    },
+    clearCategoryText: {
+        fontSize: 12,
+        color: '#3f51b5',
+        textDecorationLine: 'underline',
     },
 });

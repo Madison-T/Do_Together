@@ -38,16 +38,19 @@ export default function MyListsScreen() {
         }
     };
 
-    const renderListItem = ({ item }) => (
+    const renderListItem = ({ item }) => {
+      const activityCount = item.activities?.length || 0;
+
+      return (
         <View style={styles.listItemContainer}>
           <TouchableOpacity 
             style={styles.listItem}
             onPress={() => handleSelectList(item)}
           >
             <View style={styles.listItemContent}>
-              <Text style={styles.listTitle}>{item.title}</Text>
+              <Text style={styles.listTitle}>{item.title || item.name || 'Untitled List'}</Text>
               <Text style={styles.listCount}>
-                {item.activities ? item.activities.length : 0} {(item.activities?.length === 1) ? 'activity' : 'activities'}
+                {activityCount} {activityCount === 1 ? 'activity' : 'activities'}
               </Text>
             </View>
             <Ionicons name="chevron-forward" size={22} color="#777" />
@@ -60,7 +63,8 @@ export default function MyListsScreen() {
             <Ionicons name="trash-outline" size={22} color="#fff" />
           </TouchableOpacity>
         </View>
-    );
+      );
+    };
 
     return (
         <View style={styles.container}>
