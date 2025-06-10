@@ -3,6 +3,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import {
   Alert,
+  Image,
   SafeAreaView,
   ScrollView,
   Share,
@@ -56,10 +57,13 @@ export default function ViewGroup() {
                 (group.members || []).map(async(memberId) =>{
                     try{
                         const user = await FirestoreService.fetchUserById(memberId);
-                        return {id: memberId, name: user?.name || 'Unknown User'};
+                        return {id: memberId, 
+                          name: user?.name || `${user?.firstName || 'Unknown'} ${user?.lastName || 'User'}`,
+                          photoURL: user?.photoURL || null
+                        };
                     }catch(error){
                         console.log("Error fetching member", error);
-                        return {id: memberId, name: 'Unknown User'};
+                        return {id: memberId, name: 'Unknown User', photoURL: null};
                     }
                 })
             );
@@ -242,9 +246,16 @@ export default function ViewGroup() {
                         <View key={member.id} style={styles.memberItem}>
                             <View style={styles.memberInfo}>
                                 <View style={styles.memberAvatar}>
-                                    <Text style={styles.memberInitial}>
-                                        {member.name.charAt(0).toUpperCase()}
-                                    </Text>
+                                    {member.photoURL ? (
+                                      <Image source={{uri: member.photoURL}}
+                                      style={styles.memberAvatarImage} />
+                                    ): (
+                                      <View style={styles.memberAvatar}>
+                                        <Text style={styles.memberInitial}>
+                                          {member.name.charAt(0).toUpperCase()}
+                                        </Text>
+                                      </View>
+                                    )}
                                 </View>
                                 <Text style={styles.memberName}>
                                     {member.name} {member.id === groupDetails?.createdBy && '(Creator)'} 
@@ -309,13 +320,13 @@ const isExpired = sessionEndMillis > 0 && Date.now() > sessionEndMillis;
         <Text style={styles.votingSessionDescription}>
           {session.description || "No description"}
         </Text>
-        <Text style={styles.participantsText}>{currentVoteCount} votes cast</Text>
+        <Text style={styles.participantsText}>{voteCount} votes cast</Text>
       </View>
       <TouchableOpacity
         style={styles.votingSessionButton}
         onPress={() => {
           if (isExpired) {
-            router.push(`/results/${session.id}`);
+            router.push(`/results`);
           } else {
             router.push({
               pathname: '/(tabs)/swipe',
@@ -443,11 +454,18 @@ const isExpired = sessionEndMillis > 0 && Date.now() > sessionEndMillis;
             {members.map((member) => (
               <View key={member.id} style={styles.memberItem}>
                 <View style={styles.memberInfo}>
-                  <View style={styles.memberAvatar}>
-                    <Text style={styles.memberInitial}>
-                      {member.name.charAt(0).toUpperCase()}
-                    </Text>
-                  </View>
+                  {member.photoURL ? (
+                    <Image 
+                      source={{uri: member.photoURL}}
+                      style={styles.memberAvatarImage} 
+                    />
+                  ) : (
+                    <View style={styles.memberAvatar}>
+                      <Text style={styles.memberInitial}>
+                        {member.name.charAt(0).toUpperCase()}
+                      </Text>
+                    </View>
+                  )}
                   <Text style={styles.memberName}>
                     {member.name} {member.id === groupDetails?.createdBy && "(Creator)"}
                     {member.id === currentUserId && " (You)"}
@@ -818,4 +836,10 @@ const styles = StyleSheet.create({
         marginBottom: 12,
         letterSpacing: 1.2,
     },
+    memberAvatarImage: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      marginRight: 10,
+    }
 });
